@@ -1,10 +1,10 @@
 export const SCENARIO_STYLE: Record<string, { color: string; icon: string }> = {
-    '1': { color: '#D98E04', icon: 'taxi' },           // Taxi Ride
-    '2': { color: '#8B5E3C', icon: 'coffee' },          // Coffee Shop
-    '3': { color: '#3B4C9B', icon: 'school' },          // Talk to Professor
-    '4': { color: '#2F9E6E', icon: 'soccer' },          // Football
-    '5': { color: '#2F8FD1', icon: 'airplane' },        // Airport Check-in
-    '6': { color: '#4A4E5A', icon: 'briefcase' },       // Job Interview
+    '1': { color: '#D98E04', icon: 'taxi' },
+    '2': { color: '#8B5E3C', icon: 'coffee' },
+    '3': { color: '#3B4C9B', icon: 'school' },
+    '4': { color: '#2F9E6E', icon: 'soccer' },
+    '5': { color: '#2F8FD1', icon: 'airplane' },
+    '6': { color: '#4A4E5A', icon: 'briefcase' },
 };
 
 export const COLORS = {

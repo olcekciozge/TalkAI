@@ -9,11 +9,8 @@ import InCallManager from 'react-native-incall-manager';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-// 'permission-denied' eklendi: mikrofon izni reddedildiginde ozel bir ekran gostermek icin
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'permission-denied';
 
-// Transkript artik tek bir string degil, sirali bir liste (buffer).
-// Feedback ekrani (Gun 8-9) bu tam listeye ihtiyac duyacak.
 type TranscriptEntry = {
     role: 'user' | 'ai';
     text: string;

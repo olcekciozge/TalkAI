@@ -13,14 +13,11 @@ export interface Scenario {
     systemPrompt: string;
 }
 
-// Tüm senaryolara otomatik eklenen ortak kural.
-// AI'nin kullanıcı başka dilde konuşsa bile İngilizce'den çıkmamasını sağlar.
 const LANGUAGE_RULE =
     'IMPORTANT: Always respond in English only, no matter what language the user speaks in. ' +
     'If the user speaks Turkish, Spanish, or any other language, gently continue the roleplay in English — never switch languages.';
 
-// Tüm senaryolara otomatik eklenen davranış kuralları.
-// Kaynak: proje dokümanı "1.3 Prompt davranış kuralları" bölümü.
+
 const BEHAVIOR_RULES =
     'BEHAVIOR RULES: Stay in your role throughout the conversation — never switch into a teaching/grammar-lesson mode. ' +
     'Keep your responses short and natural so the user gets more speaking time than you. ' +
@@ -30,7 +27,6 @@ const BEHAVIOR_RULES =
     "blocks understanding — corrections are handled separately after the session ends. " +
     'Adjust your vocabulary and sentence complexity to match the level specified below.';
 
-// Senaryoların ham hali - systemPrompt'lar burada dil kuralı OLMADAN yazılır.
 const RAW_SCENARIOS: Scenario[] = [
     {
         id: '1',
@@ -136,7 +132,6 @@ const RAW_SCENARIOS: Scenario[] = [
     },
 ];
 
-// Dışarıya (uygulamanın geri kalanına) verilen asıl liste.
 // Her senaryonun systemPrompt'unun sonuna otomatik olarak LANGUAGE_RULE eklenir.
 export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map((s) => ({
     ...s,
