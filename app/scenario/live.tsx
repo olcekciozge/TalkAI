@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { mediaDevices, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
@@ -9,7 +9,15 @@ import InCallManager from 'react-native-incall-manager';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
+// 'permission-denied' eklendi: mikrofon izni reddedildiginde ozel bir ekran gostermek icin
+type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'permission-denied';
+
+// Transkript artik tek bir string degil, sirali bir liste (buffer).
+// Feedback ekrani (Gun 8-9) bu tam listeye ihtiyac duyacak.
+type TranscriptEntry = {
+    role: 'user' | 'ai';
+    text: string;
+};
 
 export default function LiveSessionScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -21,7 +29,7 @@ export default function LiveSessionScreen() {
     const [errorMessage, setErrorMessage] = useState('');
     const [isMuted, setIsMuted] = useState(false);
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
-    const [transcript, setTranscript] = useState('');
+    const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([]);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const dataChannel = useRef<any>(null);
@@ -34,8 +42,13 @@ export default function LiveSessionScreen() {
 
     async function connect() {
         if (!scenario) return;
+
+        // Onceki baglantidan kalan bir sey varsa temizle (reconnect durumunda onemli)
+        cleanup();
+
         setConnectionState('connecting');
         setErrorMessage('');
+        setTranscriptEntries([]);
 
         InCallManager.start({ media: 'audio' });
 
@@ -51,7 +64,15 @@ export default function LiveSessionScreen() {
             const ephemeralKey = tokenData.value;
 
             // 2. Mikrofon erisimi iste
-            const stream = await mediaDevices.getUserMedia({ audio: true });
+            let stream;
+            try {
+                stream = await mediaDevices.getUserMedia({ audio: true });
+            } catch (permErr: any) {
+                // Mikrofon izni reddedildiyse ozel bir ekran goster
+                console.log('MIC PERMISSION ERROR:', permErr?.name, permErr?.message);
+                setConnectionState('permission-denied');
+                return;
+            }
             localStream.current = stream;
 
             // 3. WebRTC baglantisi kur
@@ -66,6 +87,19 @@ export default function LiveSessionScreen() {
                 InCallManager.setForceSpeakerphoneOn(true);
             });
 
+            // Baglanti ortasinda kopma (network kaybi, sunucu tarafli kapama vb.) durumunu yakala
+            pc.addEventListener('iceconnectionstatechange', () => {
+                console.log('ICE CONNECTION STATE:', pc.iceConnectionState);
+                if (
+                    pc.iceConnectionState === 'disconnected' ||
+                    pc.iceConnectionState === 'failed' ||
+                    pc.iceConnectionState === 'closed'
+                ) {
+                    setConnectionState('error');
+                    setErrorMessage('Bağlantı koptu. Tekrar deneyebilirsin.');
+                }
+            });
+
             stream.getTracks().forEach((track: any) => pc.addTrack(track, stream));
 
             const dc = pc.createDataChannel('oai-events');
@@ -78,12 +112,19 @@ export default function LiveSessionScreen() {
                 // Senaryoya ozel system prompt'u gonder
                 // NOT: OpenAI Realtime GA API'si artik session objesi icinde
                 // "type": "realtime" alanini zorunlu tutuyor, eskiden gerekmiyordu.
+                // audio.input.transcription: kullanicinin kendi sesinin de yazi
+                // haline getirilip bize event olarak gelmesini saglar.
                 dc.send(
                     JSON.stringify({
                         type: 'session.update',
                         session: {
                             type: 'realtime',
                             instructions: scenario.systemPrompt,
+                            audio: {
+                                input: {
+                                    transcription: { model: 'whisper-1' },
+                                },
+                            },
                         },
                     })
                 );
@@ -104,9 +145,18 @@ export default function LiveSessionScreen() {
                 if (data.type === 'response.created') setIsAiSpeaking(true);
                 if (data.type === 'response.done') setIsAiSpeaking(false);
 
-                // DUZELTME: dogru event adi 'response.output_audio_transcript.done'
+                // AI'nin soyledigi cumle bittiginde buffer'a ekle
                 if (data.type === 'response.output_audio_transcript.done') {
-                    setTranscript(data.transcript);
+                    setTranscriptEntries((prev) => [...prev, { role: 'ai', text: data.transcript }]);
+                }
+
+                // Kullanicinin soyledigi cumle yazi haline getirildiginde buffer'a ekle.
+                // NOT: OpenAI'nin GA API'sinde bu event'in tam adi degisebiliyor
+                // (ornegin conversation.item.input_audio_transcription.completed olabilir).
+                // Konsoldaki DC MESSAGE loglarina bakip bu event'in gercekte
+                // hangi isimle geldigini dogrulamak gerekiyor.
+                if (data.type === 'conversation.item.input_audio_transcription.completed') {
+                    setTranscriptEntries((prev) => [...prev, { role: 'user', text: data.transcript }]);
                 }
             });
 
@@ -137,18 +187,26 @@ export default function LiveSessionScreen() {
     }
 
     function cleanup() {
-        if (dataChannel.current) dataChannel.current.close();
-        if (peerConnection.current) peerConnection.current.close();
+        if (dataChannel.current) {
+            dataChannel.current.close();
+            dataChannel.current = null;
+        }
+        if (peerConnection.current) {
+            peerConnection.current.close();
+            peerConnection.current = null;
+        }
         if (localStream.current) {
             localStream.current.getTracks().forEach((t: any) => t.stop());
+            localStream.current = null;
         }
     }
 
     function toggleMute() {
         if (!localStream.current) return;
         const audioTrack = localStream.current.getTracks()[0];
-        audioTrack.enabled = isMuted;
-        setIsMuted(!isMuted);
+        const nextMuted = !isMuted;
+        audioTrack.enabled = !nextMuted;
+        setIsMuted(nextMuted);
     }
 
     function handleEnd() {
@@ -156,10 +214,33 @@ export default function LiveSessionScreen() {
         router.push({ pathname: '/feedback/result', params: { id: scenario?.id ?? '' } });
     }
 
+    function handleOpenSettings() {
+        Linking.openSettings();
+    }
+
     if (!scenario || !style) {
         return (
             <View style={styles.centered}>
                 <Text style={styles.notFound}>Scenario not found.</Text>
+            </View>
+        );
+    }
+
+    if (connectionState === 'permission-denied') {
+        return (
+            <View style={styles.centered}>
+                <MaterialCommunityIcons name="microphone-off" size={40} color="#B23B3B" />
+                <Text style={styles.errorTitle}>Mikrofon izni gerekiyor</Text>
+                <Text style={styles.errorText}>
+                    Konuşma pratiği yapabilmek için mikrofon erişimine izin vermen gerekiyor.
+                    Ayarlardan izni açıp tekrar dene.
+                </Text>
+                <Pressable style={styles.retryButton} onPress={handleOpenSettings}>
+                    <Text style={styles.retryButtonText}>Ayarları Aç</Text>
+                </Pressable>
+                <Pressable style={[styles.retryButton, styles.secondaryButton]} onPress={connect}>
+                    <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+                </Pressable>
             </View>
         );
     }
@@ -176,6 +257,8 @@ export default function LiveSessionScreen() {
             </View>
         );
     }
+
+    const lastEntry = transcriptEntries[transcriptEntries.length - 1];
 
     return (
         <View style={[styles.container, { backgroundColor: style.color }]}>
@@ -203,9 +286,9 @@ export default function LiveSessionScreen() {
                             : 'Your turn to speak'}
                 </Text>
 
-                {transcript ? (
+                {lastEntry ? (
                     <View style={styles.transcriptBox}>
-                        <Text style={styles.transcriptText}>"{transcript}"</Text>
+                        <Text style={styles.transcriptText}>"{lastEntry.text}"</Text>
                     </View>
                 ) : null}
             </View>
@@ -264,6 +347,11 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         paddingVertical: 12,
         borderRadius: 12,
+    },
+    secondaryButton: {
+        backgroundColor: 'transparent',
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     retryButtonText: {
         color: '#fff',
