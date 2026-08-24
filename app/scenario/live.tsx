@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { mediaDevices, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
+import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
 import InCallManager from 'react-native-incall-manager';
@@ -64,7 +64,7 @@ export default function LiveSessionScreen() {
             const ephemeralKey = tokenData.value;
 
             // 2. Mikrofon erisimi iste
-            let stream;
+            let stream: MediaStream;
             try {
                 stream = await mediaDevices.getUserMedia({ audio: true });
             } catch (permErr: any) {

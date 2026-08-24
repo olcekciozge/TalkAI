@@ -19,6 +19,17 @@ const LANGUAGE_RULE =
     'IMPORTANT: Always respond in English only, no matter what language the user speaks in. ' +
     'If the user speaks Turkish, Spanish, or any other language, gently continue the roleplay in English — never switch languages.';
 
+// Tüm senaryolara otomatik eklenen davranış kuralları.
+// Kaynak: proje dokümanı "1.3 Prompt davranış kuralları" bölümü.
+const BEHAVIOR_RULES =
+    'BEHAVIOR RULES: Stay in your role throughout the conversation — never switch into a teaching/grammar-lesson mode. ' +
+    'Keep your responses short and natural so the user gets more speaking time than you. ' +
+    "Don't ask a question every single turn — if the conversation is flowing, just respond naturally; " +
+    "if the conversation stalls or the user goes quiet, ask a natural follow-up to keep it going. " +
+    "If the user makes a language mistake, do not interrupt or correct them mid-conversation unless it critically " +
+    "blocks understanding — corrections are handled separately after the session ends. " +
+    'Adjust your vocabulary and sentence complexity to match the level specified below.';
+
 // Senaryoların ham hali - systemPrompt'lar burada dil kuralı OLMADAN yazılır.
 const RAW_SCENARIOS: Scenario[] = [
     {
@@ -129,7 +140,7 @@ const RAW_SCENARIOS: Scenario[] = [
 // Her senaryonun systemPrompt'unun sonuna otomatik olarak LANGUAGE_RULE eklenir.
 export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map((s) => ({
     ...s,
-    systemPrompt: `${s.systemPrompt} ${LANGUAGE_RULE}`,
+    systemPrompt: `${s.systemPrompt} ${BEHAVIOR_RULES} ${LANGUAGE_RULE}`,
 }));
 
 export function getScenarioById(id: string): Scenario | undefined {
