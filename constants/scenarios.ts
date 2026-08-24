@@ -73,7 +73,7 @@ const RAW_SCENARIOS: Scenario[] = [
         level: 'B1',
         levelLabel: 'B1',
         estimatedMinutes: 8,
-        isPremium: true,
+        isPremium: false,
         summary: 'Bir dersten sonra hocanla konuşuyorsun, anlamadığın bir konuyu soruyorsun.',
         tasks: [
             'Derste bir soru sor',
@@ -90,7 +90,7 @@ const RAW_SCENARIOS: Scenario[] = [
         level: 'B1',
         levelLabel: 'B1',
         estimatedMinutes: 6,
-        isPremium: true,
+        isPremium: false,
         summary: 'Arkadaşınla maç, takım ve oyuncular hakkında sohbet ediyorsun.',
         tasks: [
             'Takımından bahset',
@@ -107,7 +107,7 @@ const RAW_SCENARIOS: Scenario[] = [
         level: 'A2',
         levelLabel: 'A2',
         estimatedMinutes: 6,
-        isPremium: false,
+        isPremium: true,
         summary: 'Havaalanında check-in yaptırıyorsun, bagaj ve koltuk tercihini belirtiyorsun.',
         tasks: [
             'Check-in yaptır',
