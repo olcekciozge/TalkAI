@@ -30,10 +30,12 @@ export default function LiveSessionScreen() {
     const [isMuted, setIsMuted] = useState(false);
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
     const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([]);
+    const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const dataChannel = useRef<any>(null);
     const localStream = useRef<any>(null);
+    const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         connect();
@@ -108,6 +110,7 @@ export default function LiveSessionScreen() {
             dc.addEventListener('open', () => {
                 console.log('DATA CHANNEL OPENED');
                 setConnectionState('connected');
+                startTimer();
 
                 // Senaryoya ozel system prompt'u gonder
                 // NOT: OpenAI Realtime GA API'si artik session objesi icinde
@@ -187,6 +190,7 @@ export default function LiveSessionScreen() {
     }
 
     function cleanup() {
+        stopTimer();
         if (dataChannel.current) {
             dataChannel.current.close();
             dataChannel.current = null;
@@ -199,6 +203,38 @@ export default function LiveSessionScreen() {
             localStream.current.getTracks().forEach((t: any) => t.stop());
             localStream.current = null;
         }
+    }
+
+    function startTimer() {
+        stopTimer();
+        const totalSeconds = (scenario?.estimatedMinutes ?? 5) * 60;
+        setSecondsLeft(totalSeconds);
+
+        timerInterval.current = setInterval(() => {
+            setSecondsLeft((prev) => {
+                if (prev === null) return null;
+                if (prev <= 1) {
+                    // Sure doldu, session'i otomatik bitir
+                    stopTimer();
+                    handleEnd();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }
+
+    function stopTimer() {
+        if (timerInterval.current) {
+            clearInterval(timerInterval.current);
+            timerInterval.current = null;
+        }
+    }
+
+    function formatTime(totalSeconds: number) {
+        const m = Math.floor(totalSeconds / 60);
+        const s = totalSeconds % 60;
+        return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
     function toggleMute() {
@@ -264,7 +300,11 @@ export default function LiveSessionScreen() {
         <View style={[styles.container, { backgroundColor: style.color }]}>
             <View style={styles.topBar}>
                 <Text style={styles.timer}>
-                    {connectionState === 'connecting' ? 'Connecting...' : 'Live'}
+                    {connectionState === 'connecting'
+                        ? 'Connecting...'
+                        : secondsLeft !== null
+                            ? formatTime(secondsLeft)
+                            : 'Live'}
                 </Text>
                 <Text style={styles.roleLabel}>{scenario.aiRole}</Text>
             </View>
