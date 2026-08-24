@@ -13,7 +13,14 @@ export interface Scenario {
     systemPrompt: string;
 }
 
-export const SCENARIOS: Scenario[] = [
+// Tüm senaryolara otomatik eklenen ortak kural.
+// AI'nin kullanıcı başka dilde konuşsa bile İngilizce'den çıkmamasını sağlar.
+const LANGUAGE_RULE =
+    'IMPORTANT: Always respond in English only, no matter what language the user speaks in. ' +
+    'If the user speaks Turkish, Spanish, or any other language, gently continue the roleplay in English — never switch languages.';
+
+// Senaryoların ham hali - systemPrompt'lar burada dil kuralı OLMADAN yazılır.
+const RAW_SCENARIOS: Scenario[] = [
     {
         id: '1',
         title: 'Taxi Ride',
@@ -117,6 +124,13 @@ export const SCENARIOS: Scenario[] = [
             'You are a job interviewer. Ask the candidate to introduce themselves, ask about their experience and strengths, and follow up naturally like a real interview. B1-B2 level English.',
     },
 ];
+
+// Dışarıya (uygulamanın geri kalanına) verilen asıl liste.
+// Her senaryonun systemPrompt'unun sonuna otomatik olarak LANGUAGE_RULE eklenir.
+export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map((s) => ({
+    ...s,
+    systemPrompt: `${s.systemPrompt} ${LANGUAGE_RULE}`,
+}));
 
 export function getScenarioById(id: string): Scenario | undefined {
     return SCENARIOS.find((s) => s.id === id);

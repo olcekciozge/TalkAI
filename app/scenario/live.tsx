@@ -38,7 +38,6 @@ export default function LiveSessionScreen() {
         setErrorMessage('');
 
         InCallManager.start({ media: 'audio' });
-        InCallManager.setForceSpeakerphoneOn(true);
 
         try {
             // 1. Django'dan geçici (ephemeral) token al
@@ -61,7 +60,10 @@ export default function LiveSessionScreen() {
 
             pc.addEventListener('track', () => {
                 console.log('REMOTE TRACK RECEIVED');
-                // Uzak ses (AI sesi) otomatik olarak cihaz hoparlorune yonlenir
+                // Uzak ses (AI sesi) gelince speaker'i zorla ac.
+                // Bunu track gelmeden yapmak native tarafta yaris durumuna
+                // (race condition) yol acip sesin bazen kesilmesine sebep olabiliyordu.
+                InCallManager.setForceSpeakerphoneOn(true);
             });
 
             stream.getTracks().forEach((track: any) => pc.addTrack(track, stream));
@@ -74,10 +76,13 @@ export default function LiveSessionScreen() {
                 setConnectionState('connected');
 
                 // Senaryoya ozel system prompt'u gonder
+                // NOT: OpenAI Realtime GA API'si artik session objesi icinde
+                // "type": "realtime" alanini zorunlu tutuyor, eskiden gerekmiyordu.
                 dc.send(
                     JSON.stringify({
                         type: 'session.update',
                         session: {
+                            type: 'realtime',
                             instructions: scenario.systemPrompt,
                         },
                     })
@@ -91,9 +96,16 @@ export default function LiveSessionScreen() {
                 const data = JSON.parse(event.data);
                 console.log('DC MESSAGE:', data.type);
 
+                // DEBUG: error tipi mesajlarin icerigini tam olarak gorelim
+                if (data.type === 'error') {
+                    console.log('ERROR DETAY:', JSON.stringify(data));
+                }
+
                 if (data.type === 'response.created') setIsAiSpeaking(true);
                 if (data.type === 'response.done') setIsAiSpeaking(false);
-                if (data.type === 'response.audio_transcript.done') {
+
+                // DUZELTME: dogru event adi 'response.output_audio_transcript.done'
+                if (data.type === 'response.output_audio_transcript.done') {
                     setTranscript(data.transcript);
                 }
             });
