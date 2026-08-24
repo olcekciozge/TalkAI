@@ -9,8 +9,11 @@ import InCallManager from 'react-native-incall-manager';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
+// 'permission-denied' eklendi: mikrofon izni reddedildiginde ozel bir ekran gostermek icin
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'permission-denied';
 
+// Transkript artik tek bir string degil, sirali bir liste (buffer).
+// Feedback ekrani (Gun 8-9) bu tam listeye ihtiyac duyacak.
 type TranscriptEntry = {
     role: 'user' | 'ai';
     text: string;
@@ -244,7 +247,17 @@ export default function LiveSessionScreen() {
 
     function handleEnd() {
         cleanup();
-        router.push({ pathname: '/feedback/result', params: { id: scenario?.id ?? '' } });
+        // Transcript'i feedback ekranina tasiyoruz (JSON string olarak).
+        // Feedback API'ye istegi burada degil, sonraki ekranda atacagiz -
+        // boylece kullanici hemen ekran degisimini gorur, "Analyzing..."
+        // yuklenme durumunu feedback ekraninda bekler.
+        router.push({
+            pathname: '/feedback/result',
+            params: {
+                id: scenario?.id ?? '',
+                transcript: JSON.stringify(transcriptEntries),
+            },
+        });
     }
 
     function handleOpenSettings() {
