@@ -138,7 +138,7 @@ export default function LiveSessionScreen() {
 
             dc.addEventListener('message', (event: any) => {
                 const data = JSON.parse(event.data);
-                console.log('DC MESSAGE:', data.type);
+                console.log('DC MESSAGE:', data);
 
                 // DEBUG: error tipi mesajlarin icerigini tam olarak gorelim
                 if (data.type === 'error') {

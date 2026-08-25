@@ -1,17 +1,59 @@
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SCENARIOS } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { isPremiumUser, purchasePremium } from '@/lib/purchases';
 
 export default function HomeScreen() {
   const router = useRouter();
+
+  // GUN 11: GECICI test bolumu - RevenueCat entitlement/purchase akisini
+  // dogrulamak icin. Gun 12'de gercek Superwall paywall'i gelince bu
+  // bolum tamamen kaldirilacak, sadece test amacli burada.
+  const [checkingStatus, setCheckingStatus] = useState(false);
+  const [purchasing, setPurchasing] = useState(false);
+
+  async function handleCheckStatus() {
+    setCheckingStatus(true);
+    const premium = await isPremiumUser();
+    setCheckingStatus(false);
+    Alert.alert('Entitlement durumu', premium ? 'Premium AKTIF ✅' : 'Premium aktif degil ❌');
+  }
+
+  async function handleTestPurchase() {
+    setPurchasing(true);
+    const success = await purchasePremium();
+    setPurchasing(false);
+    Alert.alert(
+        'Test satin alma sonucu',
+        success ? 'Basarili! Entitlement aktif oldu ✅' : 'Basarisiz oldu ya da iptal edildi ❌'
+    );
+  }
 
   return (
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.title}>Practice today</Text>
           <Text style={styles.subtitle}>Pick a real-life moment and speak it out loud</Text>
+        </View>
+
+        {/* GUN 11 GECICI TEST BOLUMU - Gun 12'de kaldirilacak */}
+        <View style={styles.debugBox}>
+          <Text style={styles.debugTitle}>🧪 RevenueCat Test (geçici)</Text>
+          <View style={styles.debugRow}>
+            <Pressable style={styles.debugButton} onPress={handleCheckStatus} disabled={checkingStatus}>
+              <Text style={styles.debugButtonText}>
+                {checkingStatus ? 'Kontrol ediliyor...' : 'Entitlement Durumu'}
+              </Text>
+            </Pressable>
+            <Pressable style={styles.debugButton} onPress={handleTestPurchase} disabled={purchasing}>
+              <Text style={styles.debugButtonText}>
+                {purchasing ? 'Satın alınıyor...' : 'Test Satın Al'}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <FlatList
@@ -73,6 +115,38 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.inkMuted,
     marginTop: 4,
+  },
+  debugBox: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.card,
+  },
+  debugTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.inkMuted,
+    marginBottom: 8,
+  },
+  debugRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  debugButton: {
+    flex: 1,
+    backgroundColor: COLORS.ink,
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  debugButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   list: {
     paddingHorizontal: 20,

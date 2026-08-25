@@ -6,6 +6,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
+import { initPurchases } from '@/lib/purchases';
 
 export {
   ErrorBoundary,
@@ -33,6 +34,11 @@ export default function RootLayout() {
     }
   }, [loaded]);
 
+  // GUN 11: RevenueCat SDK'sini uygulama acilir acilmaz, BIR KERE baslatiyoruz.
+  useEffect(() => {
+    initPurchases();
+  }, []);
+
   if (!loaded) {
     return null;
   }
@@ -49,6 +55,8 @@ function RootLayoutNav() {
           <Stack.Screen name="scenario/[id]" options={{ title: 'Scenario' }} />
           <Stack.Screen name="scenario/live" options={{ headerShown: false }} />
           <Stack.Screen name="feedback/result" options={{ title: 'Feedback' }} />
+          <Stack.Screen name="history/[id]" options={{ title: 'Session Detail' }} />
+          <Stack.Screen name="paywall" options={{ title: 'Premium', presentation: 'modal' }} />
         </Stack>
       </ThemeProvider>
   );

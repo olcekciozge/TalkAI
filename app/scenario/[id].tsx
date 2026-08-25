@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { isPremiumUser } from '@/lib/purchases';
 
 export default function ScenarioDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -18,8 +19,26 @@ export default function ScenarioDetailScreen() {
         );
     }
 
-    const handleStart = () => {
+    const goToLive = () => {
         router.push({ pathname: '/scenario/live', params: { id: scenario.id } });
+    };
+
+    // GUN 12 (yedek plan - Superwall yerine): Premium senaryo kilidi.
+    // Free senaryolar direkt gecer. Premium senaryolarda RevenueCat'e soruyoruz:
+    // - Kullanicinin entitlement'i varsa: goToLive() aninda calisir.
+    // - Yoksa: kendi paywall ekranimiza yonlendiriyoruz, orada satin alirsa
+    //   direkt live.tsx'e gecer (paywall.tsx bunu kendi icinde hallediyor).
+    const handleStart = async () => {
+        if (!scenario.isPremium) {
+            goToLive();
+            return;
+        }
+        const premium = await isPremiumUser();
+        if (premium) {
+            goToLive();
+        } else {
+            router.push({ pathname: '/paywall', params: { returnScenarioId: scenario.id } });
+        }
     };
 
     return (
