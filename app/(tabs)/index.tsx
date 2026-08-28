@@ -1,92 +1,113 @@
-import { useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SCENARIOS } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
-import { isPremiumUser, purchasePremium } from '@/lib/purchases';
+import { useSearch } from '@/contexts/SearchContext';
+
+type LevelFilter = 'all' | 'beginner' | 'intermediate';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { searchQuery } = useSearch();
 
-  // GUN 11: GECICI test bolumu - RevenueCat entitlement/purchase akisini
-  // dogrulamak icin. Gun 12'de gercek Superwall paywall'i gelince bu
-  // bolum tamamen kaldirilacak, sadece test amacli burada.
-  const [checkingStatus, setCheckingStatus] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
 
-  async function handleCheckStatus() {
-    setCheckingStatus(true);
-    const premium = await isPremiumUser();
-    setCheckingStatus(false);
-    Alert.alert('Entitlement durumu', premium ? 'Premium AKTIF ✅' : 'Premium aktif degil ❌');
-  }
+  const filteredScenarios = useMemo(() => {
+    let list = SCENARIOS;
 
-  async function handleTestPurchase() {
-    setPurchasing(true);
-    const success = await purchasePremium();
-    setPurchasing(false);
-    Alert.alert(
-        'Test satin alma sonucu',
-        success ? 'Basarili! Entitlement aktif oldu ✅' : 'Basarisiz oldu ya da iptal edildi ❌'
-    );
-  }
+    if (levelFilter === 'beginner') {
+      list = list.filter((s) => s.level === 'A1' || s.level === 'A2');
+    } else if (levelFilter === 'intermediate') {
+      list = list.filter((s) => s.level === 'B1' || s.level === 'B2');
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+          (s) => s.title.toLowerCase().includes(q) || s.aiRole.toLowerCase().includes(q)
+      );
+    }
+
+    return list;
+  }, [levelFilter, searchQuery]);
+
+  // FlatList numColumns=2 kullanirken, son satirda TEK kart kalirsa
+  // o kart satirin tamamini kaplamaya calisir (buyur). Bunu engellemek
+  // icin, tek kaldigi durumlarda gorunmez bir "dolgu" kart ekliyoruz -
+  // boylece gercek kart hep ayni boyutta kalir, yaninda bosluk kalir.
+  const paddedScenarios = useMemo(() => {
+    if (filteredScenarios.length % 2 !== 0) {
+      return [...filteredScenarios, { id: '__placeholder__' } as any];
+    }
+    return filteredScenarios;
+  }, [filteredScenarios]);
 
   return (
       <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Practice today</Text>
-          <Text style={styles.subtitle}>Pick a real-life moment and speak it out loud</Text>
-        </View>
-
-        {/* GUN 11 GECICI TEST BOLUMU - Gun 12'de kaldirilacak */}
-        <View style={styles.debugBox}>
-          <Text style={styles.debugTitle}>🧪 RevenueCat Test (geçici)</Text>
-          <View style={styles.debugRow}>
-            <Pressable style={styles.debugButton} onPress={handleCheckStatus} disabled={checkingStatus}>
-              <Text style={styles.debugButtonText}>
-                {checkingStatus ? 'Kontrol ediliyor...' : 'Entitlement Durumu'}
-              </Text>
-            </Pressable>
-            <Pressable style={styles.debugButton} onPress={handleTestPurchase} disabled={purchasing}>
-              <Text style={styles.debugButtonText}>
-                {purchasing ? 'Satın alınıyor...' : 'Test Satın Al'}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
         <FlatList
-            data={SCENARIOS}
+            data={paddedScenarios}
             keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.gridRow}
             contentContainerStyle={styles.list}
+            ListHeaderComponent={
+              <View style={styles.filterRow}>
+                <FilterChip
+                    label="All"
+                    active={levelFilter === 'all'}
+                    onPress={() => setLevelFilter('all')}
+                />
+                <FilterChip
+                    label="Beginner"
+                    active={levelFilter === 'beginner'}
+                    onPress={() => setLevelFilter('beginner')}
+                />
+                <FilterChip
+                    label="Intermediate"
+                    active={levelFilter === 'intermediate'}
+                    onPress={() => setLevelFilter('intermediate')}
+                />
+              </View>
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <MaterialCommunityIcons name="text-search" size={32} color={COLORS.inkMuted} />
+                <Text style={styles.emptyText}>No scenarios match your search.</Text>
+              </View>
+            }
             renderItem={({ item }) => {
+              if (item.id === '__placeholder__') {
+                return <View style={[styles.card, styles.cardPlaceholder]} />;
+              }
               const style = SCENARIO_STYLE[item.id];
               return (
                   <Pressable
                       style={styles.card}
                       onPress={() => router.push({ pathname: '/scenario/[id]', params: { id: item.id } })}
                   >
-                    <View style={[styles.iconWrap, { backgroundColor: style.color + '1A' }]}>
-                      <MaterialCommunityIcons name={style.icon as any} size={28} color={style.color} />
+                    {item.isPremium && (
+                        <View style={styles.premiumBadge}>
+                          <MaterialCommunityIcons name="lock" size={11} color="#fff" />
+                        </View>
+                    )}
+
+                    <View style={[styles.iconWrap, { backgroundColor: style.color }]}>
+                      <MaterialCommunityIcons name={style.icon as any} size={34} color="#fff" />
                     </View>
 
-                    <View style={styles.cardBody}>
-                      <View style={styles.cardTopRow}>
-                        <Text style={styles.cardTitle}>{item.title}</Text>
-                        {item.isPremium && (
-                            <View style={styles.premiumBadge}>
-                              <MaterialCommunityIcons name="lock" size={12} color={COLORS.premium} />
-                              <Text style={styles.premiumText}>Premium</Text>
-                            </View>
-                        )}
-                      </View>
-                      <Text style={styles.cardRole}>with {item.aiRole}</Text>
-                      <View style={styles.metaRow}>
-                        <Text style={styles.metaText}>{item.levelLabel}</Text>
-                        <Text style={styles.metaDot}>•</Text>
-                        <Text style={styles.metaText}>{item.estimatedMinutes} min</Text>
-                      </View>
+                    <Text style={styles.cardTitle} numberOfLines={1}>
+                      {item.title}
+                    </Text>
+                    <Text style={styles.cardRole} numberOfLines={1}>
+                      with {item.aiRole}
+                    </Text>
+
+                    <View style={styles.metaRow}>
+                      <Text style={styles.metaText}>{item.levelLabel}</Text>
+                      <Text style={styles.metaDot}>•</Text>
+                      <Text style={styles.metaText}>{item.estimatedMinutes} min</Text>
                     </View>
                   </Pressable>
               );
@@ -96,124 +117,123 @@ export default function HomeScreen() {
   );
 }
 
+function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+      <Pressable style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
+        <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+      </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
-  },
-  title: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: COLORS.ink,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.inkMuted,
-    marginTop: 4,
-  },
-  debugBox: {
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.card,
-  },
-  debugTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: COLORS.inkMuted,
-    marginBottom: 8,
-  },
-  debugRow: {
+  filterRow: {
     flexDirection: 'row',
     gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 16,
+    marginBottom: 4,
   },
-  debugButton: {
-    flex: 1,
-    backgroundColor: COLORS.ink,
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: 'center',
-  },
-  debugButtonText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  list: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-    gap: 12,
-  },
-  card: {
-    flexDirection: 'row',
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
-    borderRadius: 16,
-    padding: 14,
     borderWidth: 1,
     borderColor: COLORS.border,
-    gap: 12,
-    alignItems: 'center',
   },
-  iconWrap: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+  chipActive: {
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.inkMuted,
+  },
+  chipTextActive: {
+    color: '#fff',
+  },
+  list: {
+    paddingHorizontal: 12,
+    paddingBottom: 110,
+  },
+  gridRow: {
+    gap: 12,
+    paddingHorizontal: 4,
+    justifyContent: 'flex-start',
+  },
+  card: {
+    width: '48%',
+    aspectRatio: 0.82,
+    backgroundColor: COLORS.card,
+    borderRadius: 22,
+    padding: 14,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    position: 'relative',
+  },
+  cardPlaceholder: {
+    backgroundColor: 'transparent',
+    borderWidth: 0,
+  },
+  premiumBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: COLORS.premium,
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
-  cardBody: {
-    flex: 1,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
+  iconWrap: {
+    width: '100%',
+    height: '52%',
+    borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   cardTitle: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: COLORS.ink,
   },
   cardRole: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.inkMuted,
     marginTop: 2,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: 10,
     gap: 6,
   },
   metaText: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.inkMuted,
+    fontWeight: '600',
   },
   metaDot: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.inkMuted,
   },
-  premiumBadge: {
-    flexDirection: 'row',
+  emptyState: {
     alignItems: 'center',
-    gap: 3,
-    backgroundColor: '#C9A2271A',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    justifyContent: 'center',
+    paddingVertical: 48,
+    gap: 8,
   },
-  premiumText: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: COLORS.premium,
+  emptyText: {
+    fontSize: 13,
+    color: COLORS.inkMuted,
   },
 });

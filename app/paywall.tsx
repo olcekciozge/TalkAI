@@ -5,12 +5,6 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@/constants/scenarioStyles';
 import { purchasePremium } from '@/lib/purchases';
 
-// GUN 12 (yedek plan): Superwall'in deprecated SDK'si native crash veriyordu
-// (bakim edilmeyen paket, ic senkronizasyon hatasi). Onun yerine RevenueCat'in
-// zaten calisan (Gun 11) purchasePremium() fonksiyonunu kullanan kendi basit
-// paywall ekranimizi yaziyoruz. Superwall'in "kod degistirmeden tasarim
-// guncelleme" ozelligini kaybediyoruz ama cokme riski olmayan, kontrolumuzde
-// bir cozume sahip oluyoruz.
 export default function PaywallScreen() {
     const { returnScenarioId } = useLocalSearchParams<{ returnScenarioId?: string }>();
     const router = useRouter();
@@ -23,14 +17,11 @@ export default function PaywallScreen() {
 
         if (success) {
             if (returnScenarioId) {
-                // Satin alma basarili, kullaniciyi direkt gitmek istedigi senaryoya gonder
                 router.replace({ pathname: '/scenario/live', params: { id: returnScenarioId } });
             } else {
                 router.back();
             }
         }
-        // Basarisiz ya da iptal edilirse hicbir sey yapmiyoruz,
-        // kullanici bu ekranda kalip tekrar deneyebilir.
     }
 
     return (

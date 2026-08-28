@@ -36,11 +36,11 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'A2',
         estimatedMinutes: 7,
         isPremium: false,
-        summary: 'Bir taksiye biniyorsun, sürücüyle güzergah ve şehir hakkında sohbet ediyorsun.',
+        summary: 'You get into a taxi and chat with the driver about the route and the city.',
         tasks: [
-            'Gideceğin yeri söyle',
-            'Sürücüyle small talk yap',
-            'Şehir hakkında bir soru sor',
+            "Say where you're going",
+            'Make small talk with the driver',
+            'Ask a question about the city',
         ],
         systemPrompt:
             'You are a friendly taxi driver picking up a passenger. Ask where they are going, make small talk about the city, and encourage them to practice speaking naturally. Keep your English at an A2 level.',
@@ -53,11 +53,11 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'A1-A2',
         estimatedMinutes: 5,
         isPremium: false,
-        summary: 'Bir kafede sipariş veriyorsun, değişiklik istiyorsun ve ödeme yapıyorsun.',
+        summary: 'You order at a coffee shop, ask for a change to your order, and pay.',
         tasks: [
-            'Sipariş ver',
-            'Siparişinde değişiklik iste',
-            'Ödeme hakkında soru sor',
+            'Place an order',
+            'Ask to change your order',
+            'Ask a question about payment',
         ],
         systemPrompt:
             'You are a barista at a coffee shop. Take the customer\'s order, offer suggestions, and handle payment questions. Keep your English simple, A1-A2 level.',
@@ -70,11 +70,11 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'B1',
         estimatedMinutes: 8,
         isPremium: false,
-        summary: 'Bir dersten sonra hocanla konuşuyorsun, anlamadığın bir konuyu soruyorsun.',
+        summary: "You talk to your professor after class and ask about a topic you didn't understand.",
         tasks: [
-            'Derste bir soru sor',
-            'Bir konu hakkında açıklama iste',
-            'Kaçırdığın bir konuyu anlat',
+            'Ask a question about the lecture',
+            'Ask for an explanation about a topic',
+            'Explain a topic you missed',
         ],
         systemPrompt:
             'You are a university professor after class. Answer the student\'s questions patiently, explain concepts clearly, and ask follow-up questions to check understanding. B1 level English.',
@@ -87,11 +87,11 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'B1',
         estimatedMinutes: 6,
         isPremium: false,
-        summary: 'Arkadaşınla maç, takım ve oyuncular hakkında sohbet ediyorsun.',
+        summary: 'You chat with a friend about a match, teams, and players.',
         tasks: [
-            'Takımından bahset',
-            'Son bir maçı yorumla',
-            'Bir tahmin yap',
+            'Talk about your team',
+            'Comment on a recent match',
+            'Make a prediction',
         ],
         systemPrompt:
             'You are a friend chatting casually about football. Talk about teams, matches, and players, and ask the user for their opinions and predictions. B1 level English, casual tone.',
@@ -104,11 +104,11 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'A2',
         estimatedMinutes: 6,
         isPremium: true,
-        summary: 'Havaalanında check-in yaptırıyorsun, bagaj ve koltuk tercihini belirtiyorsun.',
+        summary: 'You check in at the airport and specify your baggage and seat preference.',
         tasks: [
-            'Check-in yaptır',
-            'Bagaj hakkında konuş',
-            'Koltuk tercihini belirt',
+            'Check in',
+            'Talk about your baggage',
+            'State your seat preference',
         ],
         systemPrompt:
             'You are airline check-in staff at an airport counter. Guide the passenger through check-in, ask about baggage, and offer seat preferences. A2 level English.',
@@ -121,18 +121,17 @@ const RAW_SCENARIOS: Scenario[] = [
         levelLabel: 'B1-B2',
         estimatedMinutes: 10,
         isPremium: true,
-        summary: 'Bir iş görüşmesindesin, kendini tanıtıyor ve deneyimlerinden bahsediyorsun.',
+        summary: "You're in a job interview, introducing yourself and talking about your experience.",
         tasks: [
-            'Kendini tanıt',
-            'Deneyimlerinden bahset',
-            'Güçlü yönlerini anlat',
+            'Introduce yourself',
+            'Talk about your experience',
+            'Talk about your strengths',
         ],
         systemPrompt:
             'You are a job interviewer. Ask the candidate to introduce themselves, ask about their experience and strengths, and follow up naturally like a real interview. B1-B2 level English.',
     },
 ];
 
-// Her senaryonun systemPrompt'unun sonuna otomatik olarak LANGUAGE_RULE eklenir.
 export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map((s) => ({
     ...s,
     systemPrompt: `${s.systemPrompt} ${BEHAVIOR_RULES} ${LANGUAGE_RULE}`,

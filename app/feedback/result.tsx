@@ -65,8 +65,6 @@ export default function FeedbackScreen() {
             setFeedback(data);
             setScreenState('success');
 
-            // GUN 10: session'i telefona kaydet, History'de gorunsun.
-            // Kullanicinin beklemesine gerek yok, arka planda sessizce kaydediyoruz.
             const overall = Math.round(((data.grammar.score + data.fluency.score + data.vocabulary.score) / 3) * 10);
             saveSession({
                 id: Date.now().toString(),

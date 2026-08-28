@@ -8,10 +8,11 @@ export const SCENARIO_STYLE: Record<string, { color: string; icon: string }> = {
 };
 
 export const COLORS = {
-    background: '#FAF7F1',
-    card: '#FFFFFF',
+    background: '#e0e0e0',
+    card: '#c8c8c8',
     ink: '#1F2430',
-    inkMuted: '#6B7280',
-    border: '#EEE8DD',
+    inkMuted: '#000000',
+    border: '#b5b5b5',
     premium: '#C9A227',
+    accent: '#e42115',
 };
