@@ -11,6 +11,9 @@ export interface Scenario {
     summary: string;
     tasks: string[];
     systemPrompt: string;
+
+    // Kisa cumlelerin baglamsiz yanlis duyulmasini azaltmaya yardimci olur.
+    transcriptionKeywords?: string[];
 }
 
 const LANGUAGE_RULE =
@@ -44,6 +47,20 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are a friendly taxi driver picking up a passenger. Ask where they are going, make small talk about the city, and encourage them to practice speaking naturally. Keep your English at an A2 level.',
+        transcriptionKeywords: [
+            'airport',
+            'hotel',
+            'downtown',
+            'turn left',
+            'turn right',
+            'straight ahead',
+            'traffic',
+            'how much',
+            'meter',
+            'credit card',
+            'cash',
+            'address',
+        ],
     },
     {
         id: '2',
@@ -61,6 +78,20 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are a barista at a coffee shop. Take the customer\'s order, offer suggestions, and handle payment questions. Keep your English simple, A1-A2 level.',
+        transcriptionKeywords: [
+            'hot coffee',
+            'iced coffee',
+            'latte',
+            'cappuccino',
+            'americano',
+            'espresso',
+            'oat milk',
+            'almond milk',
+            'to go',
+            'for here',
+            'extra shot',
+            'receipt',
+        ],
     },
     {
         id: '3',
@@ -68,7 +99,7 @@ const RAW_SCENARIOS: Scenario[] = [
         aiRole: 'Professor',
         level: 'B1',
         levelLabel: 'B1',
-        estimatedMinutes: 8,
+        estimatedMinutes: 7,
         isPremium: false,
         summary: "You talk to your professor after class and ask about a topic you didn't understand.",
         tasks: [
@@ -78,6 +109,18 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are a university professor after class. Answer the student\'s questions patiently, explain concepts clearly, and ask follow-up questions to check understanding. B1 level English.',
+        transcriptionKeywords: [
+            'lecture',
+            'assignment',
+            'exam',
+            'office hours',
+            'syllabus',
+            'extra credit',
+            'deadline',
+            'essay',
+            'grade',
+            'topic',
+        ],
     },
     {
         id: '4',
@@ -95,6 +138,18 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are a friend chatting casually about football. Talk about teams, matches, and players, and ask the user for their opinions and predictions. B1 level English, casual tone.',
+        transcriptionKeywords: [
+            'match',
+            'team',
+            'player',
+            'score',
+            'goal',
+            'penalty',
+            'referee',
+            'league',
+            'championship',
+            'coach',
+        ],
     },
     {
         id: '5',
@@ -112,6 +167,18 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are airline check-in staff at an airport counter. Guide the passenger through check-in, ask about baggage, and offer seat preferences. A2 level English.',
+        transcriptionKeywords: [
+            'passport',
+            'boarding pass',
+            'gate',
+            'baggage',
+            'carry-on',
+            'window seat',
+            'aisle seat',
+            'check-in',
+            'overweight',
+            'connecting flight',
+        ],
     },
     {
         id: '6',
@@ -119,7 +186,7 @@ const RAW_SCENARIOS: Scenario[] = [
         aiRole: 'Interviewer',
         level: 'B2',
         levelLabel: 'B1-B2',
-        estimatedMinutes: 10,
+        estimatedMinutes: 5,
         isPremium: true,
         summary: "You're in a job interview, introducing yourself and talking about your experience.",
         tasks: [
@@ -129,6 +196,18 @@ const RAW_SCENARIOS: Scenario[] = [
         ],
         systemPrompt:
             'You are a job interviewer. Ask the candidate to introduce themselves, ask about their experience and strengths, and follow up naturally like a real interview. B1-B2 level English.',
+        transcriptionKeywords: [
+            'experience',
+            'strengths',
+            'weaknesses',
+            'resume',
+            'salary',
+            'availability',
+            'team player',
+            'previous job',
+            'skills',
+            'qualifications',
+        ],
     },
 ];
 

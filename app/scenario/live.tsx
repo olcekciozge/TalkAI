@@ -9,11 +9,8 @@ import InCallManager from 'react-native-incall-manager';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
-// 'permission-denied' eklendi: mikrofon izni reddedildiginde ozel bir ekran gostermek icin
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'permission-denied';
 
-// Transkript artik tek bir string degil, sirali bir liste (buffer).
-// Feedback ekrani (Gun 8-9) bu tam listeye ihtiyac duyacak.
 type TranscriptEntry = {
     role: 'user' | 'ai';
     text: string;
@@ -27,7 +24,7 @@ export default function LiveSessionScreen() {
 
     const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
     const [errorMessage, setErrorMessage] = useState('');
-    const [isMuted, setIsMuted] = useState(false);
+    const [isRecording, setIsRecording] = useState(false);
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
     const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([]);
     const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
@@ -36,6 +33,12 @@ export default function LiveSessionScreen() {
     const dataChannel = useRef<any>(null);
     const localStream = useRef<any>(null);
     const timerInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+    // pc.addTrack'in dondurdugu RTCRtpSender'i tutuyoruz - mikrofonu gercekten
+    // susturmak icin track.enabled yerine sender.replaceTrack(null)/replaceTrack(track)
+    // kullaniyoruz. Bazi react-native-webrtc surumlerinde track.enabled=false
+    // native tarafta RTP gonderimini garanti kesmiyor; replaceTrack ise
+    // encoder'i tamamen ayirdigi icin kesin sonuc veriyor.
+    const audioSenderRef = useRef<any>(null);
 
     useEffect(() => {
         connect();
@@ -45,7 +48,6 @@ export default function LiveSessionScreen() {
     async function connect() {
         if (!scenario) return;
 
-        // Onceki baglantidan kalan bir sey varsa temizle (reconnect durumunda onemli)
         cleanup();
 
         setConnectionState('connecting');
@@ -61,14 +63,25 @@ export default function LiveSessionScreen() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ scenario_id: scenario.id }),
             });
-            if (!tokenRes.ok) throw new Error('Backend token isteği basarisiz oldu');
+            if (!tokenRes.ok) throw new Error('Backend token request failed');
             const tokenData = await tokenRes.json();
             const ephemeralKey = tokenData.value;
 
             // 2. Mikrofon erisimi iste
             let stream: MediaStream;
             try {
-                stream = await mediaDevices.getUserMedia({ audio: true });
+                // audio:true yerine acik constraint'ler - echoCancellation ozellikle
+                // onemli, hoparlorden cikan AI sesinin mikrofona geri girip
+                // "kullanici konustu" sanilmasini (echo) azaltmaya yardimci olur.
+                // Push-to-talk ile zaten mikrofon AI konusurken hic acik olmuyor,
+                // ama kullanicinin kendi konustugu anlarda da temiz kayit icin faydali.
+                stream = await mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    },
+                });
             } catch (permErr: any) {
                 // Mikrofon izni reddedildiyse ozel bir ekran goster
                 console.log('MIC PERMISSION ERROR:', permErr?.name, permErr?.message);
@@ -98,11 +111,18 @@ export default function LiveSessionScreen() {
                     pc.iceConnectionState === 'closed'
                 ) {
                     setConnectionState('error');
-                    setErrorMessage('Bağlantı koptu. Tekrar deneyebilirsin.');
+                    setErrorMessage('Connection lost. You can try again.');
                 }
             });
 
-            stream.getTracks().forEach((track: any) => pc.addTrack(track, stream));
+            stream.getTracks().forEach((track: any) => {
+                const sender = pc.addTrack(track, stream);
+                audioSenderRef.current = sender;
+            });
+
+            // Mikrofon PUSH-TO-TALK modunda: varsayilan olarak kapali baslar,
+            // sadece kullanici mic butonunu basili tuttugu surece acilir.
+            setMicActive(false);
 
             const dc = pc.createDataChannel('oai-events');
             dataChannel.current = dc;
@@ -117,6 +137,13 @@ export default function LiveSessionScreen() {
                 // "type": "realtime" alanini zorunlu tutuyor, eskiden gerekmiyordu.
                 // audio.input.transcription: kullanicinin kendi sesinin de yazi
                 // haline getirilip bize event olarak gelmesini saglar.
+                // Transkripsiyon modeli: whisper-1'e gore daha dogru sonuc veren
+                // gpt-4o-mini-transcribe. NOT: prompt/keywords alanlarini
+                // GERI ALDIK - onlar "type: transcription" (ayri, saf transkripsiyon)
+                // session'lari icin dokumante edilmis, bizim kullandigimiz
+                // "type: realtime" (speech-to-speech) session'da gecersiz olabilir
+                // ve tum session.update'in reddedilmesine (bu yuzden instructions
+                // ve turn_detection'in da hic uygulanmamasina) sebep olmus olabilir.
                 dc.send(
                     JSON.stringify({
                         type: 'session.update',
@@ -125,7 +152,13 @@ export default function LiveSessionScreen() {
                             instructions: scenario.systemPrompt,
                             audio: {
                                 input: {
-                                    transcription: { model: 'whisper-1' },
+                                    transcription: {
+                                        model: 'gpt-4o-mini-transcribe',
+                                    },
+                                    // turn_detection: null -> server-side VAD tamamen kapali.
+                                    // Push-to-talk mimarisinde response.create'i SADECE biz,
+                                    // kullanici mic butonunu biraktiginda gonderiyoruz.
+                                    turn_detection: null,
                                 },
                             },
                         },
@@ -143,6 +176,15 @@ export default function LiveSessionScreen() {
                 // DEBUG: error tipi mesajlarin icerigini tam olarak gorelim
                 if (data.type === 'error') {
                     console.log('ERROR DETAY:', JSON.stringify(data));
+                }
+
+                // DEBUG: session.update'imizin gercekten kabul edilip
+                // edilmedigini dogrulamak icin. Eger bu hic gelmiyorsa ve
+                // bunun yerine bir 'error' event'i geliyorsa, session.update
+                // reddedilmis demektir (instructions/turn_detection de
+                // uygulanmamis olur).
+                if (data.type === 'session.updated') {
+                    console.log('SESSION UPDATED - kabul edildi:', JSON.stringify(data.session?.audio?.input));
                 }
 
                 if (data.type === 'response.created') setIsAiSpeaking(true);
@@ -176,7 +218,7 @@ export default function LiveSessionScreen() {
                 },
             });
 
-            if (!sdpRes.ok) throw new Error('OpenAI baglantisi kurulamadi');
+            if (!sdpRes.ok) throw new Error('Could not connect to OpenAI');
 
             const answerSdp = await sdpRes.text();
             await pc.setRemoteDescription(
@@ -185,12 +227,13 @@ export default function LiveSessionScreen() {
         } catch (err: any) {
             console.error('Connection error:', err);
             setConnectionState('error');
-            setErrorMessage(err.message || 'Baglanti kurulamadi');
+            setErrorMessage(err.message || 'Connection failed');
         }
     }
 
     function cleanup() {
         stopTimer();
+        audioSenderRef.current = null;
         if (dataChannel.current) {
             dataChannel.current.close();
             dataChannel.current = null;
@@ -237,12 +280,44 @@ export default function LiveSessionScreen() {
         return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
-    function toggleMute() {
-        if (!localStream.current) return;
-        const audioTrack = localStream.current.getTracks()[0];
-        const nextMuted = !isMuted;
-        audioTrack.enabled = !nextMuted;
-        setIsMuted(nextMuted);
+    // track.enabled=false yerine bunu kullaniyoruz: sender'dan track'i tamamen
+    // sokup (replaceTrack(null)) geri takmak, native tarafta RTP gonderiminin
+    // gercekten durdugunu garanti eden daha kesin bir yontem.
+    async function setMicActive(active: boolean) {
+        if (!audioSenderRef.current || !localStream.current) return;
+        try {
+            if (active) {
+                const audioTrack = localStream.current.getTracks()[0];
+                await audioSenderRef.current.replaceTrack(audioTrack);
+            } else {
+                await audioSenderRef.current.replaceTrack(null);
+            }
+        } catch (err) {
+            console.log('setMicActive error:', err);
+        }
+    }
+
+    // PUSH-TO-TALK: mikrofon SADECE bu buton basili tutulurken aciliyor.
+    // AI konusurken basmaya izin vermiyoruz. Biraktiginda commit + response.create
+    // BIZ tetikliyoruz - VAD kapali oldugu icin sunucu kendiliginden asla
+    // "kullanici konustu" diye bir seyi otomatik baslatamaz.
+    async function handlePressIn() {
+        if (isAiSpeaking || connectionState !== 'connected') return;
+        setIsRecording(true);
+        if (dataChannel.current) {
+            dataChannel.current.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+        }
+        await setMicActive(true);
+    }
+
+    async function handlePressOut() {
+        if (!isRecording) return;
+        setIsRecording(false);
+        await setMicActive(false);
+        if (dataChannel.current) {
+            dataChannel.current.send(JSON.stringify({ type: 'input_audio_buffer.commit' }));
+            dataChannel.current.send(JSON.stringify({ type: 'response.create' }));
+        }
     }
 
     function handleEnd() {
@@ -276,16 +351,16 @@ export default function LiveSessionScreen() {
         return (
             <View style={styles.centered}>
                 <MaterialCommunityIcons name="microphone-off" size={40} color="#B23B3B" />
-                <Text style={styles.errorTitle}>Mikrofon izni gerekiyor</Text>
+                <Text style={styles.errorTitle}>Microphone permission required</Text>
                 <Text style={styles.errorText}>
-                    Konuşma pratiği yapabilmek için mikrofon erişimine izin vermen gerekiyor.
-                    Ayarlardan izni açıp tekrar dene.
+                    You need to allow microphone access to practice speaking.
+                    Please enable it in Settings and try again.
                 </Text>
                 <Pressable style={styles.retryButton} onPress={handleOpenSettings}>
-                    <Text style={styles.retryButtonText}>Ayarları Aç</Text>
+                    <Text style={styles.retryButtonText}>Open Settings</Text>
                 </Pressable>
                 <Pressable style={[styles.retryButton, styles.secondaryButton]} onPress={connect}>
-                    <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+                    <Text style={styles.retryButtonText}>Try Again</Text>
                 </Pressable>
             </View>
         );
@@ -333,7 +408,9 @@ export default function LiveSessionScreen() {
                         ? 'Setting up the session...'
                         : isAiSpeaking
                             ? `${scenario.aiRole} is speaking...`
-                            : 'Your turn to speak'}
+                            : isRecording
+                                ? 'Listening... release to send'
+                                : 'Hold the mic button to talk'}
                 </Text>
 
                 {lastEntry ? (
@@ -344,9 +421,18 @@ export default function LiveSessionScreen() {
             </View>
 
             <View style={styles.controls}>
-                <Pressable style={styles.controlButton} onPress={toggleMute}>
+                <Pressable
+                    style={[
+                        styles.controlButton,
+                        isRecording && styles.controlButtonRecording,
+                        (isAiSpeaking || connectionState !== 'connected') && styles.controlButtonDisabled,
+                    ]}
+                    onPressIn={handlePressIn}
+                    onPressOut={handlePressOut}
+                    disabled={isAiSpeaking || connectionState !== 'connected'}
+                >
                     <MaterialCommunityIcons
-                        name={isMuted ? 'microphone-off' : 'microphone'}
+                        name={isRecording ? 'microphone' : 'microphone-outline'}
                         size={26}
                         color="#fff"
                     />
@@ -466,6 +552,13 @@ const styles = StyleSheet.create({
         backgroundColor: '#ffffff26',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    controlButtonRecording: {
+        backgroundColor: '#E5484D',
+        transform: [{ scale: 1.1 }],
+    },
+    controlButtonDisabled: {
+        opacity: 0.4,
     },
     endButton: {
         width: 68,

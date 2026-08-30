@@ -7,7 +7,6 @@ export type FeedbackData = {
     fluency: { score: number; comment: string };
     vocabulary: { score: number; comment: string };
     corrections: { original: string; corrected: string; explanation: string }[];
-    better_expressions: { original: string; suggestion: string }[];
     summary: string;
 };
 
