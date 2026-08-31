@@ -28,7 +28,7 @@ const BEHAVIOR_RULES =
     "if the conversation stalls or the user goes quiet, ask a natural follow-up to keep it going. " +
     "If the user makes a language mistake, do not interrupt or correct them mid-conversation unless it critically " +
     "blocks understanding — corrections are handled separately after the session ends. " +
-    'Adjust your vocabulary and sentence complexity to match the level specified below.';
+    'Adjust your vocabulary and sentence complexity to match the level mentioned above.';
 
 const RAW_SCENARIOS: Scenario[] = [
     {
@@ -211,9 +211,17 @@ const RAW_SCENARIOS: Scenario[] = [
     },
 ];
 
+function buildLearnerGoalsInstruction(tasks: string[]): string {
+    return (
+        'LEARNER GOALS FOR THIS SESSION (do not read these out loud or treat them as a checklist — ' +
+        "weave them naturally into the conversation as it flows, over the course of the session, the way a real " +
+        `person would): ${tasks.join('; ')}.`
+    );
+}
+
 export const SCENARIOS: Scenario[] = RAW_SCENARIOS.map((s) => ({
     ...s,
-    systemPrompt: `${s.systemPrompt} ${BEHAVIOR_RULES} ${LANGUAGE_RULE}`,
+    systemPrompt: `${s.systemPrompt} ${BEHAVIOR_RULES} ${buildLearnerGoalsInstruction(s.tasks)} ${LANGUAGE_RULE}`,
 }));
 
 export function getScenarioById(id: string): Scenario | undefined {
