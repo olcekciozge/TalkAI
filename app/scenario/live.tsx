@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Alert, ImageBackground } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { SCENARIO_BACKGROUND } from '@/constants/scenarioBackgrounds';
 import { type TranscriptEntry } from '@/lib/sessionStorage';
 import TranscriptModal from '@/components/TranscriptModal';
 import InCallManager from 'react-native-incall-manager';
@@ -165,7 +166,6 @@ export default function LiveSessionScreen() {
                 if (data.type === 'response.output_audio_transcript.done') {
                     setTranscriptEntries((prev) => [...prev, { role: 'ai', text: data.transcript }]);
                 }
-                // Kullanicinin soyledigi cumle yazi haline getirildiginde buffer'a ekle.
                 if (data.type === 'conversation.item.input_audio_transcription.completed') {
                     setTranscriptEntries((prev) => [...prev, { role: 'user', text: data.transcript }]);
                 }
@@ -349,7 +349,15 @@ export default function LiveSessionScreen() {
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: style.color }]}>
+        <ImageBackground
+            source={id ? SCENARIO_BACKGROUND[id] : undefined}
+            style={[styles.container, { backgroundColor: style.color }]}
+            resizeMode="cover"
+        >
+            {/* Karartma katmani: gorsel ne kadar acik/koyu olursa olsun
+                ustundeki beyaz metin/butonlar her zaman okunakli kalsin diye. */}
+            <View style={styles.scrim} pointerEvents="none" />
+
             <View style={styles.topBar}>
                 <Text style={styles.timer}>
                     {connectionState === 'connecting'
@@ -362,13 +370,7 @@ export default function LiveSessionScreen() {
             </View>
 
             <View style={styles.center}>
-                {connectionState === 'connecting' ? (
-                    <ActivityIndicator size="large" color="#fff" />
-                ) : (
-                    <View style={styles.avatarWrap}>
-                        <MaterialCommunityIcons name={style.icon as any} size={56} color="#fff" />
-                    </View>
-                )}
+                {connectionState === 'connecting' && <ActivityIndicator size="large" color="#fff" />}
 
                 <Text style={styles.turnLabel}>
                     {connectionState === 'connecting'
@@ -418,7 +420,7 @@ export default function LiveSessionScreen() {
                 entries={transcriptEntries}
                 aiRoleLabel={scenario.aiRole}
             />
-        </View>
+        </ImageBackground>
     );
 }
 
@@ -429,6 +431,10 @@ const styles = StyleSheet.create({
         paddingBottom: 40,
         paddingHorizontal: 24,
         justifyContent: 'space-between',
+    },
+    scrim: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(8, 10, 18, 0.45)',
     },
     centered: {
         flex: 1,
@@ -487,14 +493,6 @@ const styles = StyleSheet.create({
     center: {
         alignItems: 'center',
         gap: 20,
-    },
-    avatarWrap: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: '#ffffff26',
-        alignItems: 'center',
-        justifyContent: 'center',
     },
     turnLabel: {
         color: '#fff',
