@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { saveSession, type FeedbackData } from '@/lib/sessionStorage';
 import FeedbackView from '@/components/FeedbackView';
 
@@ -59,7 +60,7 @@ export default function FeedbackScreen() {
                 }),
             });
 
-            if (!res.ok) throw new Error('Feedback isteği başarısız oldu');
+            if (!res.ok) throw new Error('Feedback request failed');
 
             const data: FeedbackData = await res.json();
             setFeedback(data);
@@ -144,15 +145,6 @@ export default function FeedbackScreen() {
                     accentColor={style?.color ?? COLORS.premium}
                 />
             </ScrollView>
-
-            <View style={styles.footer}>
-                <Pressable
-                    style={[styles.doneButton, { backgroundColor: style?.color ?? COLORS.ink }]}
-                    onPress={handleDone}
-                >
-                    <Text style={styles.doneButtonText}>Back to scenarios</Text>
-                </Pressable>
-            </View>
         </View>
     );
 }
@@ -178,7 +170,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     retryButtonText: { color: '#fff', fontWeight: '700' },
-    scroll: { padding: 20, paddingBottom: 100, alignItems: 'center' },
+    scroll: { padding: 20, paddingBottom: TAB_BAR_CLEARANCE, alignItems: 'center' },
     footer: {
         position: 'absolute',
         bottom: 0,

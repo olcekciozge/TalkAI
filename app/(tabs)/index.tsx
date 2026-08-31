@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SCENARIOS } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { useSearch } from '@/contexts/SearchContext';
 
 type LevelFilter = 'all' | 'beginner' | 'intermediate';
@@ -33,10 +34,6 @@ export default function HomeScreen() {
     return list;
   }, [levelFilter, searchQuery]);
 
-  // FlatList numColumns=2 kullanirken, son satirda TEK kart kalirsa
-  // o kart satirin tamamini kaplamaya calisir (buyur). Bunu engellemek
-  // icin, tek kaldigi durumlarda gorunmez bir "dolgu" kart ekliyoruz -
-  // boylece gercek kart hep ayni boyutta kalir, yaninda bosluk kalir.
   const paddedScenarios = useMemo(() => {
     if (filteredScenarios.length % 2 !== 0) {
       return [...filteredScenarios, { id: '__placeholder__' } as any];
@@ -159,7 +156,7 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingHorizontal: 12,
-    paddingBottom: 110,
+    paddingBottom: TAB_BAR_CLEARANCE,
   },
   gridRow: {
     gap: 12,

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Modal, ScrollView, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
@@ -28,6 +28,7 @@ export default function LiveSessionScreen() {
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
     const [transcriptEntries, setTranscriptEntries] = useState<TranscriptEntry[]>([]);
     const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+    const [showTranscript, setShowTranscript] = useState(false);
 
     const peerConnection = useRef<RTCPeerConnection | null>(null);
     const dataChannel = useRef<any>(null);
@@ -70,11 +71,6 @@ export default function LiveSessionScreen() {
             // 2. Mikrofon erisimi iste
             let stream: MediaStream;
             try {
-                // audio:true yerine acik constraint'ler - echoCancellation ozellikle
-                // onemli, hoparlorden cikan AI sesinin mikrofona geri girip
-                // "kullanici konustu" sanilmasini (echo) azaltmaya yardimci olur.
-                // Push-to-talk ile zaten mikrofon AI konusurken hic acik olmuyor,
-                // ama kullanicinin kendi konustugu anlarda da temiz kayit icin faydali.
                 stream = await mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -120,8 +116,7 @@ export default function LiveSessionScreen() {
                 audioSenderRef.current = sender;
             });
 
-            // Mikrofon PUSH-TO-TALK modunda: varsayilan olarak kapali baslar,
-            // sadece kullanici mic butonunu basili tuttugu surece acilir.
+
             setMicActive(false);
 
             const dc = pc.createDataChannel('oai-events');
@@ -133,17 +128,6 @@ export default function LiveSessionScreen() {
                 startTimer();
 
                 // Senaryoya ozel system prompt'u gonder
-                // NOT: OpenAI Realtime GA API'si artik session objesi icinde
-                // "type": "realtime" alanini zorunlu tutuyor, eskiden gerekmiyordu.
-                // audio.input.transcription: kullanicinin kendi sesinin de yazi
-                // haline getirilip bize event olarak gelmesini saglar.
-                // Transkripsiyon modeli: whisper-1'e gore daha dogru sonuc veren
-                // gpt-4o-mini-transcribe. NOT: prompt/keywords alanlarini
-                // GERI ALDIK - onlar "type: transcription" (ayri, saf transkripsiyon)
-                // session'lari icin dokumante edilmis, bizim kullandigimiz
-                // "type: realtime" (speech-to-speech) session'da gecersiz olabilir
-                // ve tum session.update'in reddedilmesine (bu yuzden instructions
-                // ve turn_detection'in da hic uygulanmamasina) sebep olmus olabilir.
                 dc.send(
                     JSON.stringify({
                         type: 'session.update',
@@ -155,9 +139,6 @@ export default function LiveSessionScreen() {
                                     transcription: {
                                         model: 'gpt-4o-mini-transcribe',
                                     },
-                                    // turn_detection: null -> server-side VAD tamamen kapali.
-                                    // Push-to-talk mimarisinde response.create'i SADECE biz,
-                                    // kullanici mic butonunu biraktiginda gonderiyoruz.
                                     turn_detection: null,
                                 },
                             },
@@ -178,11 +159,6 @@ export default function LiveSessionScreen() {
                     console.log('ERROR DETAY:', JSON.stringify(data));
                 }
 
-                // DEBUG: session.update'imizin gercekten kabul edilip
-                // edilmedigini dogrulamak icin. Eger bu hic gelmiyorsa ve
-                // bunun yerine bir 'error' event'i geliyorsa, session.update
-                // reddedilmis demektir (instructions/turn_detection de
-                // uygulanmamis olur).
                 if (data.type === 'session.updated') {
                     console.log('SESSION UPDATED - kabul edildi:', JSON.stringify(data.session?.audio?.input));
                 }
@@ -194,12 +170,7 @@ export default function LiveSessionScreen() {
                 if (data.type === 'response.output_audio_transcript.done') {
                     setTranscriptEntries((prev) => [...prev, { role: 'ai', text: data.transcript }]);
                 }
-
                 // Kullanicinin soyledigi cumle yazi haline getirildiginde buffer'a ekle.
-                // NOT: OpenAI'nin GA API'sinde bu event'in tam adi degisebiliyor
-                // (ornegin conversation.item.input_audio_transcription.completed olabilir).
-                // Konsoldaki DC MESSAGE loglarina bakip bu event'in gercekte
-                // hangi isimle geldigini dogrulamak gerekiyor.
                 if (data.type === 'conversation.item.input_audio_transcription.completed') {
                     setTranscriptEntries((prev) => [...prev, { role: 'user', text: data.transcript }]);
                 }
@@ -297,10 +268,6 @@ export default function LiveSessionScreen() {
         }
     }
 
-    // PUSH-TO-TALK: mikrofon SADECE bu buton basili tutulurken aciliyor.
-    // AI konusurken basmaya izin vermiyoruz. Biraktiginda commit + response.create
-    // BIZ tetikliyoruz - VAD kapali oldugu icin sunucu kendiliginden asla
-    // "kullanici konustu" diye bir seyi otomatik baslatamaz.
     async function handlePressIn() {
         if (isAiSpeaking || connectionState !== 'connected') return;
         setIsRecording(true);
@@ -322,10 +289,6 @@ export default function LiveSessionScreen() {
 
     function handleEnd() {
         cleanup();
-        // Transcript'i feedback ekranina tasiyoruz (JSON string olarak).
-        // Feedback API'ye istegi burada degil, sonraki ekranda atacagiz -
-        // boylece kullanici hemen ekran degisimini gorur, "Analyzing..."
-        // yuklenme durumunu feedback ekraninda bekler.
         router.push({
             pathname: '/feedback/result',
             params: {
@@ -333,6 +296,17 @@ export default function LiveSessionScreen() {
                 transcript: JSON.stringify(transcriptEntries),
             },
         });
+    }
+
+    function confirmEndSession() {
+        Alert.alert(
+            'End this conversation?',
+            'Your progress in this session will be saved, but the call will end.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'End Session', style: 'destructive', onPress: handleEnd },
+            ]
+        );
     }
 
     function handleOpenSettings() {
@@ -379,8 +353,6 @@ export default function LiveSessionScreen() {
         );
     }
 
-    const lastEntry = transcriptEntries[transcriptEntries.length - 1];
-
     return (
         <View style={[styles.container, { backgroundColor: style.color }]}>
             <View style={styles.topBar}>
@@ -413,11 +385,6 @@ export default function LiveSessionScreen() {
                                 : 'Hold the mic button to talk'}
                 </Text>
 
-                {lastEntry ? (
-                    <View style={styles.transcriptBox}>
-                        <Text style={styles.transcriptText}>"{lastEntry.text}"</Text>
-                    </View>
-                ) : null}
             </View>
 
             <View style={styles.controls}>
@@ -438,10 +405,73 @@ export default function LiveSessionScreen() {
                     />
                 </Pressable>
 
-                <Pressable style={styles.endButton} onPress={handleEnd}>
+                <Pressable style={styles.endButton} onPress={confirmEndSession}>
                     <MaterialCommunityIcons name="phone-hangup" size={28} color="#fff" />
                 </Pressable>
+
+                <Pressable
+                    style={styles.controlButton}
+                    onPress={() => setShowTranscript(true)}
+                >
+                    <MaterialCommunityIcons name="message-text-outline" size={24} color="#fff" />
+                </Pressable>
             </View>
+
+            <Modal
+                visible={showTranscript}
+                animationType="slide"
+                transparent
+                onRequestClose={() => setShowTranscript(false)}
+            >
+                <View style={styles.panelOverlay}>
+                    <Pressable style={styles.panelBackdrop} onPress={() => setShowTranscript(false)} />
+                    <View style={styles.panel}>
+                        <View style={styles.panelHeader}>
+                            <Text style={styles.panelTitle}>Transcript</Text>
+                            <Pressable onPress={() => setShowTranscript(false)} hitSlop={12}>
+                                <MaterialCommunityIcons name="close" size={24} color={COLORS.ink} />
+                            </Pressable>
+                        </View>
+                        <ScrollView
+                            style={styles.panelScroll}
+                            contentContainerStyle={styles.panelScrollContent}
+                        >
+                            {transcriptEntries.length === 0 ? (
+                                <Text style={styles.panelEmpty}>Nothing said yet.</Text>
+                            ) : (
+                                transcriptEntries.map((entry, index) => (
+                                    <View
+                                        key={index}
+                                        style={[
+                                            styles.transcriptRow,
+                                            entry.role === 'user'
+                                                ? styles.transcriptRowUser
+                                                : styles.transcriptRowAi,
+                                        ]}
+                                    >
+                                        <Text
+                                            style={[
+                                                styles.transcriptRowLabel,
+                                                entry.role === 'user' && styles.transcriptRowLabelUser,
+                                            ]}
+                                        >
+                                            {entry.role === 'user' ? 'You' : scenario.aiRole}
+                                        </Text>
+                                        <Text
+                                            style={[
+                                                styles.transcriptRowText,
+                                                entry.role === 'user' && styles.transcriptRowTextUser,
+                                            ]}
+                                        >
+                                            {entry.text}
+                                        </Text>
+                                    </View>
+                                ))
+                            )}
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -567,5 +597,75 @@ const styles = StyleSheet.create({
         backgroundColor: '#E5484D',
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    panelOverlay: {
+        flex: 1,
+        flexDirection: 'row',
+    },
+    panelBackdrop: {
+        flex: 1,
+        backgroundColor: '#00000066',
+    },
+    panel: {
+        width: '78%',
+        maxWidth: 340,
+        backgroundColor: COLORS.background,
+        paddingTop: 60,
+        paddingHorizontal: 20,
+        paddingBottom: 24,
+    },
+    panelHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: 16,
+    },
+    panelTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: COLORS.ink,
+    },
+    panelScroll: {
+        flex: 1,
+    },
+    panelScrollContent: {
+        gap: 12,
+        paddingBottom: 24,
+    },
+    panelEmpty: {
+        color: COLORS.inkMuted,
+        fontSize: 14,
+    },
+    transcriptRow: {
+        borderRadius: 12,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        maxWidth: '92%',
+    },
+    transcriptRowUser: {
+        backgroundColor: COLORS.ink,
+        alignSelf: 'flex-end',
+    },
+    transcriptRowAi: {
+        backgroundColor: '#00000012',
+        alignSelf: 'flex-start',
+    },
+    transcriptRowLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        marginBottom: 2,
+        opacity: 0.7,
+        color: COLORS.inkMuted,
+    },
+    transcriptRowLabelUser: {
+        color: '#ffffffaa',
+    },
+    transcriptRowText: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: COLORS.ink,
+    },
+    transcriptRowTextUser: {
+        color: '#fff',
     },
 });

@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, View, ScrollView, ActivityIndicator, Text } from 'react-native';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { COLORS, SCENARIO_STYLE } from '@/constants/scenarioStyles';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { getSessionById, type StoredSession } from '@/lib/sessionStorage';
 import FeedbackView from '@/components/FeedbackView';
 
 export default function HistoryDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
-    // undefined = henuz yuklenmedi, null = bulunamadi, obje = bulundu
     const [session, setSession] = useState<StoredSession | null | undefined>(undefined);
 
     useEffect(() => {
@@ -58,5 +58,5 @@ const styles = StyleSheet.create({
         backgroundColor: COLORS.background,
     },
     notFound: { fontSize: 16, color: COLORS.inkMuted },
-    scroll: { padding: 20, paddingBottom: 40, alignItems: 'center' },
+    scroll: { padding: 20, paddingBottom: TAB_BAR_CLEARANCE, alignItems: 'center' },
 });

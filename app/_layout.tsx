@@ -123,13 +123,18 @@ function GlobalTopBar() {
                 TALK<Text style={styles.logoAccent}>.AI</Text>
               </Text>
           )}
-          <Pressable style={styles.searchButton} onPress={handleSearchPress}>
-            <MaterialCommunityIcons
-                name={searchOpen && isHome ? 'close' : 'magnify'}
-                size={20}
-                color={COLORS.ink}
-            />
-          </Pressable>
+          <View style={styles.topBarActions}>
+            <Pressable style={styles.iconButton} onPress={handleSearchPress}>
+              <MaterialCommunityIcons
+                  name={searchOpen && isHome ? 'close' : 'magnify'}
+                  size={20}
+                  color={COLORS.ink}
+              />
+            </Pressable>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/paywall')}>
+              <MaterialCommunityIcons name="star-four-points" size={19} color={COLORS.accent} />
+            </Pressable>
+          </View>
         </View>
       </View>
   );
@@ -140,7 +145,6 @@ function GlobalBottomBar({ pathname }: { pathname: string | null }) {
 
   const tabs = [
     { label: 'Homepage', path: '/(tabs)', match: ['/', '/(tabs)', '/index'] },
-    { label: 'Get Premium', path: '/(tabs)/get-premium', match: ['/(tabs)/get-premium', '/get-premium'] },
     { label: 'History', path: '/(tabs)/profile', match: ['/(tabs)/profile', '/profile'] },
   ];
 
@@ -214,7 +218,12 @@ const styles = StyleSheet.create({
     color: '#fff',
     padding: 0,
   },
-  searchButton: {
+  topBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconButton: {
     width: 36,
     height: 36,
     borderRadius: 18,
@@ -230,7 +239,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#9CA3AF',
+    color: '#e0e0e0',
   },
   tabLabelActive: {
     color: COLORS.accent,

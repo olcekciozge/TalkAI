@@ -1,11 +1,33 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@/constants/scenarioStyles';
 import { isPremiumUser, purchasePremium } from '@/lib/purchases';
 
-export default function GetPremiumScreen() {
+type Props = {
+    title?: string;
+    subtitle?: string;
+    onUnlocked?: () => void;
+    onDismiss?: () => void;
+    dismissLabel?: string;
+};
+
+// Gercek abonelik iptali sadece magaza hesap ayarlarindan yapilabiliyor,
+// Bu yuzden kullaniciyi ilgili magaza sayfasina yonlendiriyoruz.
+const SUBSCRIPTION_MANAGEMENT_URL = Platform.select({
+    ios: 'https://apps.apple.com/account/subscriptions',
+    android: 'https://play.google.com/store/account/subscriptions',
+    default: 'https://play.google.com/store/account/subscriptions',
+}) as string;
+
+export default function PremiumPaywall({
+                                           title = 'Unlock Everything',
+                                           subtitle = 'Get unlimited access to every scenario, including Airport Check-in and Job Interview practice.',
+                                           onUnlocked,
+                                           onDismiss,
+                                           dismissLabel = 'Maybe later',
+                                       }: Props) {
     const [checking, setChecking] = useState(true);
     const [isPremium, setIsPremium] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
@@ -26,13 +48,18 @@ export default function GetPremiumScreen() {
         }, [])
     );
 
-    async function handlePurchase() {
+    async function handleUnlock() {
         setPurchasing(true);
         const success = await purchasePremium();
         setPurchasing(false);
         if (success) {
             setIsPremium(true);
+            onUnlocked?.();
         }
+    }
+
+    function handleManageSubscription() {
+        Linking.openURL(SUBSCRIPTION_MANAGEMENT_URL);
     }
 
     if (checking) {
@@ -53,6 +80,10 @@ export default function GetPremiumScreen() {
                 <Text style={styles.subtitle}>
                     You have full access to every scenario. Thanks for supporting TalkAI.
                 </Text>
+
+                <Pressable style={styles.manageButton} onPress={handleManageSubscription}>
+                    <Text style={styles.manageButtonText}>Manage Subscription</Text>
+                </Pressable>
             </View>
         );
     }
@@ -62,19 +93,22 @@ export default function GetPremiumScreen() {
             <View style={styles.iconWrap}>
                 <MaterialCommunityIcons name="star-four-points" size={40} color={COLORS.accent} />
             </View>
-            <Text style={styles.title}>Unlock Everything</Text>
-            <Text style={styles.subtitle}>
-                Get unlimited access to every scenario, including Airport Check-in and Job
-                Interview practice.
-            </Text>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.subtitle}>{subtitle}</Text>
 
-            <Pressable style={styles.button} onPress={handlePurchase} disabled={purchasing}>
+            <Pressable style={styles.button} onPress={handleUnlock} disabled={purchasing}>
                 {purchasing ? (
                     <ActivityIndicator color="#fff" />
                 ) : (
                     <Text style={styles.buttonText}>Get Premium</Text>
                 )}
             </Pressable>
+
+            {onDismiss && (
+                <Pressable style={styles.dismissButton} onPress={onDismiss} disabled={purchasing}>
+                    <Text style={styles.dismissText}>{dismissLabel}</Text>
+                </Pressable>
+            )}
         </View>
     );
 }
@@ -122,6 +156,27 @@ const styles = StyleSheet.create({
     buttonText: {
         color: '#fff',
         fontSize: 16,
+        fontWeight: '700',
+    },
+    dismissButton: {
+        marginTop: 10,
+        padding: 8,
+    },
+    dismissText: {
+        color: COLORS.inkMuted,
+        fontSize: 14,
+    },
+    manageButton: {
+        marginTop: 20,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        paddingHorizontal: 24,
+        paddingVertical: 12,
+        borderRadius: 14,
+    },
+    manageButtonText: {
+        color: COLORS.ink,
+        fontSize: 14,
         fontWeight: '700',
     },
 });

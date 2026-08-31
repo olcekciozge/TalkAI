@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { FOOTER_BOTTOM_OFFSET } from '@/constants/layout';
 import { isPremiumUser } from '@/lib/purchases';
 
 export default function ScenarioDetailScreen() {
@@ -23,11 +24,6 @@ export default function ScenarioDetailScreen() {
         router.push({ pathname: '/scenario/live', params: { id: scenario.id } });
     };
 
-    // GUN 12 (yedek plan - Superwall yerine): Premium senaryo kilidi.
-    // Free senaryolar direkt gecer. Premium senaryolarda RevenueCat'e soruyoruz:
-    // - Kullanicinin entitlement'i varsa: goToLive() aninda calisir.
-    // - Yoksa: kendi paywall ekranimiza yonlendiriyoruz, orada satin alirsa
-    //   direkt live.tsx'e gecer (paywall.tsx bunu kendi icinde hallediyor).
     const handleStart = async () => {
         if (!scenario.isPremium) {
             goToLive();
@@ -187,7 +183,7 @@ const styles = StyleSheet.create({
     },
     footer: {
         position: 'absolute',
-        bottom: 72,
+        bottom: FOOTER_BOTTOM_OFFSET,
         left: 0,
         right: 0,
         padding: 20,

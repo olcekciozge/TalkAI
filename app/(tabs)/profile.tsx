@@ -3,6 +3,7 @@ import { StyleSheet, Text, View, Pressable, FlatList } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS, SCENARIO_STYLE } from '@/constants/scenarioStyles';
+import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { getAllSessions, type StoredSession } from '@/lib/sessionStorage';
 
 
@@ -121,7 +122,7 @@ const styles = StyleSheet.create({
     emptyTitle: { fontSize: 16, fontWeight: '600', color: COLORS.ink },
     emptySubtitle: { fontSize: 13, color: COLORS.inkMuted, textAlign: 'center' },
     list: { flex: 1 },
-    listContent: { padding: 16, gap: 12 },
+    listContent: { padding: 16, paddingBottom: TAB_BAR_CLEARANCE, gap: 12 },
     card: {
         flexDirection: 'row',
         alignItems: 'center',
