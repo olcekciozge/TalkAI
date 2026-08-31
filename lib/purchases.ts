@@ -54,3 +54,13 @@ export async function purchasePremium(): Promise<boolean> {
         return false;
     }
 }
+
+export async function restorePurchases(): Promise<boolean> {
+    try {
+        const customerInfo = await Purchases.restorePurchases();
+        return typeof customerInfo.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== 'undefined';
+    } catch (err) {
+        console.error('restorePurchases error:', err);
+        return false;
+    }
+}

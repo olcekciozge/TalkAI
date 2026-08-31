@@ -1,20 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Modal, ScrollView, Alert } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { mediaDevices, MediaStream, RTCPeerConnection, RTCSessionDescription } from 'react-native-webrtc';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { type TranscriptEntry } from '@/lib/sessionStorage';
+import TranscriptModal from '@/components/TranscriptModal';
 import InCallManager from 'react-native-incall-manager';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error' | 'permission-denied';
-
-type TranscriptEntry = {
-    role: 'user' | 'ai';
-    text: string;
-};
 
 export default function LiveSessionScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -116,7 +113,6 @@ export default function LiveSessionScreen() {
                 audioSenderRef.current = sender;
             });
 
-
             setMicActive(false);
 
             const dc = pc.createDataChannel('oai-events');
@@ -127,7 +123,6 @@ export default function LiveSessionScreen() {
                 setConnectionState('connected');
                 startTimer();
 
-                // Senaryoya ozel system prompt'u gonder
                 dc.send(
                     JSON.stringify({
                         type: 'session.update',
@@ -417,61 +412,12 @@ export default function LiveSessionScreen() {
                 </Pressable>
             </View>
 
-            <Modal
+            <TranscriptModal
                 visible={showTranscript}
-                animationType="slide"
-                transparent
-                onRequestClose={() => setShowTranscript(false)}
-            >
-                <View style={styles.panelOverlay}>
-                    <Pressable style={styles.panelBackdrop} onPress={() => setShowTranscript(false)} />
-                    <View style={styles.panel}>
-                        <View style={styles.panelHeader}>
-                            <Text style={styles.panelTitle}>Transcript</Text>
-                            <Pressable onPress={() => setShowTranscript(false)} hitSlop={12}>
-                                <MaterialCommunityIcons name="close" size={24} color={COLORS.ink} />
-                            </Pressable>
-                        </View>
-                        <ScrollView
-                            style={styles.panelScroll}
-                            contentContainerStyle={styles.panelScrollContent}
-                        >
-                            {transcriptEntries.length === 0 ? (
-                                <Text style={styles.panelEmpty}>Nothing said yet.</Text>
-                            ) : (
-                                transcriptEntries.map((entry, index) => (
-                                    <View
-                                        key={index}
-                                        style={[
-                                            styles.transcriptRow,
-                                            entry.role === 'user'
-                                                ? styles.transcriptRowUser
-                                                : styles.transcriptRowAi,
-                                        ]}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.transcriptRowLabel,
-                                                entry.role === 'user' && styles.transcriptRowLabelUser,
-                                            ]}
-                                        >
-                                            {entry.role === 'user' ? 'You' : scenario.aiRole}
-                                        </Text>
-                                        <Text
-                                            style={[
-                                                styles.transcriptRowText,
-                                                entry.role === 'user' && styles.transcriptRowTextUser,
-                                            ]}
-                                        >
-                                            {entry.text}
-                                        </Text>
-                                    </View>
-                                ))
-                            )}
-                        </ScrollView>
-                    </View>
-                </View>
-            </Modal>
+                onClose={() => setShowTranscript(false)}
+                entries={transcriptEntries}
+                aiRoleLabel={scenario.aiRole}
+            />
         </View>
     );
 }
@@ -597,75 +543,5 @@ const styles = StyleSheet.create({
         backgroundColor: '#E5484D',
         alignItems: 'center',
         justifyContent: 'center',
-    },
-    panelOverlay: {
-        flex: 1,
-        flexDirection: 'row',
-    },
-    panelBackdrop: {
-        flex: 1,
-        backgroundColor: '#00000066',
-    },
-    panel: {
-        width: '78%',
-        maxWidth: 340,
-        backgroundColor: COLORS.background,
-        paddingTop: 60,
-        paddingHorizontal: 20,
-        paddingBottom: 24,
-    },
-    panelHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: 16,
-    },
-    panelTitle: {
-        fontSize: 20,
-        fontWeight: '700',
-        color: COLORS.ink,
-    },
-    panelScroll: {
-        flex: 1,
-    },
-    panelScrollContent: {
-        gap: 12,
-        paddingBottom: 24,
-    },
-    panelEmpty: {
-        color: COLORS.inkMuted,
-        fontSize: 14,
-    },
-    transcriptRow: {
-        borderRadius: 12,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-        maxWidth: '92%',
-    },
-    transcriptRowUser: {
-        backgroundColor: COLORS.ink,
-        alignSelf: 'flex-end',
-    },
-    transcriptRowAi: {
-        backgroundColor: '#00000012',
-        alignSelf: 'flex-start',
-    },
-    transcriptRowLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        marginBottom: 2,
-        opacity: 0.7,
-        color: COLORS.inkMuted,
-    },
-    transcriptRowLabelUser: {
-        color: '#ffffffaa',
-    },
-    transcriptRowText: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: COLORS.ink,
-    },
-    transcriptRowTextUser: {
-        color: '#fff',
     },
 });

@@ -5,15 +5,11 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
-import { saveSession, type FeedbackData } from '@/lib/sessionStorage';
+import { saveSession, type FeedbackData, type TranscriptEntry } from '@/lib/sessionStorage';
 import FeedbackView from '@/components/FeedbackView';
+import TranscriptModal from '@/components/TranscriptModal';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-
-type TranscriptEntry = {
-    role: 'user' | 'ai';
-    text: string;
-};
 
 type ScreenState = 'loading' | 'success' | 'error' | 'empty';
 
@@ -28,6 +24,8 @@ export default function FeedbackScreen() {
 
     const [screenState, setScreenState] = useState<ScreenState>('loading');
     const [feedback, setFeedback] = useState<FeedbackData | null>(null);
+    const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
+    const [showTranscript, setShowTranscript] = useState(false);
 
     useEffect(() => {
         fetchFeedback();
@@ -40,6 +38,7 @@ export default function FeedbackScreen() {
         } catch {
             transcriptEntries = [];
         }
+        setTranscript(transcriptEntries);
 
         // Doküman kuralı: boş transcript'le hiç istek atma
         if (transcriptEntries.length === 0) {
@@ -60,7 +59,7 @@ export default function FeedbackScreen() {
                 }),
             });
 
-            if (!res.ok) throw new Error('Feedback request failed');
+            if (!res.ok) throw new Error('Feedback isteği başarısız oldu');
 
             const data: FeedbackData = await res.json();
             setFeedback(data);
@@ -74,6 +73,7 @@ export default function FeedbackScreen() {
                 date: new Date().toISOString(),
                 overallScore: overall,
                 feedback: data,
+                transcript: transcriptEntries,
             }).catch((err) => console.error('saveSession error:', err));
         } catch (err) {
             console.error('Feedback fetch error:', err);
@@ -138,6 +138,11 @@ export default function FeedbackScreen() {
             <Stack.Screen options={{ title: 'Session Feedback', headerBackVisible: false }} />
 
             <ScrollView contentContainerStyle={styles.scroll}>
+                <Pressable style={styles.transcriptLink} onPress={() => setShowTranscript(true)}>
+                    <MaterialCommunityIcons name="message-text-outline" size={16} color={COLORS.inkMuted} />
+                    <Text style={styles.transcriptLinkText}>View full transcript</Text>
+                </Pressable>
+
                 <FeedbackView
                     feedback={feedback}
                     overallScore={overallScore}
@@ -145,6 +150,13 @@ export default function FeedbackScreen() {
                     accentColor={style?.color ?? COLORS.premium}
                 />
             </ScrollView>
+
+            <TranscriptModal
+                visible={showTranscript}
+                onClose={() => setShowTranscript(false)}
+                entries={transcript}
+                aiRoleLabel={scenario?.aiRole}
+            />
         </View>
     );
 }
@@ -171,16 +183,18 @@ const styles = StyleSheet.create({
     },
     retryButtonText: { color: '#fff', fontWeight: '700' },
     scroll: { padding: 20, paddingBottom: TAB_BAR_CLEARANCE, alignItems: 'center' },
-    footer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: 20,
-        backgroundColor: COLORS.background,
-        borderTopWidth: 1,
-        borderTopColor: COLORS.border,
+    transcriptLink: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        alignSelf: 'flex-end',
+        marginBottom: 8,
+        paddingVertical: 4,
+        paddingHorizontal: 8,
     },
-    doneButton: { paddingVertical: 14, borderRadius: 14, alignItems: 'center' },
-    doneButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+    transcriptLinkText: {
+        fontSize: 13,
+        fontWeight: '600',
+        color: COLORS.inkMuted,
+    },
 });

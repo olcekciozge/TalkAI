@@ -10,6 +10,11 @@ export type FeedbackData = {
     summary: string;
 };
 
+export type TranscriptEntry = {
+    role: 'user' | 'ai';
+    text: string;
+};
+
 export type StoredSession = {
     id: string;
     scenarioId: string;
@@ -17,6 +22,7 @@ export type StoredSession = {
     date: string;
     overallScore: number;
     feedback: FeedbackData;
+    transcript?: TranscriptEntry[];
 };
 
 const STORAGE_KEY = 'talkai_sessions';

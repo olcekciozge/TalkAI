@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Platform } from 'react-native';
+import { StyleSheet, Text, View, Pressable, ActivityIndicator, Linking, Platform, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@/constants/scenarioStyles';
-import { isPremiumUser, purchasePremium } from '@/lib/purchases';
+import { isPremiumUser, purchasePremium, restorePurchases } from '@/lib/purchases';
 
 type Props = {
     title?: string;
@@ -31,6 +31,7 @@ export default function PremiumPaywall({
     const [checking, setChecking] = useState(true);
     const [isPremium, setIsPremium] = useState(false);
     const [purchasing, setPurchasing] = useState(false);
+    const [restoring, setRestoring] = useState(false);
 
     useFocusEffect(
         useCallback(() => {
@@ -60,6 +61,21 @@ export default function PremiumPaywall({
 
     function handleManageSubscription() {
         Linking.openURL(SUBSCRIPTION_MANAGEMENT_URL);
+    }
+
+    async function handleRestore() {
+        setRestoring(true);
+        const restored = await restorePurchases();
+        setRestoring(false);
+        if (restored) {
+            setIsPremium(true);
+            onUnlocked?.();
+        } else {
+            Alert.alert(
+                'Nothing to restore',
+                "We couldn't find an active purchase linked to this account."
+            );
+        }
     }
 
     if (checking) {
@@ -101,6 +117,14 @@ export default function PremiumPaywall({
                     <ActivityIndicator color="#fff" />
                 ) : (
                     <Text style={styles.buttonText}>Get Premium</Text>
+                )}
+            </Pressable>
+
+            <Pressable style={styles.dismissButton} onPress={handleRestore} disabled={purchasing || restoring}>
+                {restoring ? (
+                    <ActivityIndicator color={COLORS.inkMuted} size="small" />
+                ) : (
+                    <Text style={styles.dismissText}>Restore Purchases</Text>
                 )}
             </Pressable>
 
