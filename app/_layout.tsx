@@ -1,14 +1,14 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, usePathname, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter, useFocusEffect } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import 'react-native-reanimated';
 import { useColorScheme } from '@/components/useColorScheme';
-import { initPurchases } from '@/lib/purchases';
+import { initPurchases, isPremiumUser } from '@/lib/purchases';
 import { COLORS } from '@/constants/scenarioStyles';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { SearchProvider, useSearch } from '@/contexts/SearchContext';
@@ -102,6 +102,19 @@ function GlobalTopBar() {
   const { user } = useAuth();
   const isHome = pathname === '/' || pathname === '/(tabs)' || pathname === '/index';
 
+  // Tac/yildiz ikonunun kendisi premium durumuna gore degisiyor - dolu
+  // + altin renk (zaten premium'sin) vs. cerceveli + kirmizi (henuz degil,
+  // dokununca satin almaya davet ediyor). Ekrana her donuste tazeleniyor
+  // ki satin alip geri donunce aninda guncellensin.
+  const [hasPremium, setHasPremium] = useState(false);
+  useFocusEffect(
+      useCallback(() => {
+        if (user) {
+          isPremiumUser().then(setHasPremium);
+        }
+      }, [user])
+  );
+
   function handleSearchPress() {
     if (!isHome) {
       setSearchOpen(true);
@@ -143,7 +156,11 @@ function GlobalTopBar() {
                 kalkti, artik alt bardaki "Profile" sekmesinden erisiliyor. */}
             {user && (
                 <Pressable style={styles.iconButton} onPress={() => router.push('/paywall')}>
-                  <MaterialCommunityIcons name="star-four-points" size={19} color={COLORS.accent} />
+                  <MaterialCommunityIcons
+                      name={hasPremium ? 'check-decagram' : 'star-four-points-outline'}
+                      size={19}
+                      color={hasPremium ? COLORS.premium : COLORS.accent}
+                  />
                 </Pressable>
             )}
           </View>
