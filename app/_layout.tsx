@@ -83,6 +83,7 @@ function RootLayoutNav() {
                 <Stack.Screen name="history/[id]" />
                 <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
                 <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="account" />
               </Stack>
             </View>
 
@@ -137,6 +138,9 @@ function GlobalTopBar() {
             </Pressable>
             <Pressable style={styles.iconButton} onPress={() => router.push('/paywall')}>
               <MaterialCommunityIcons name="star-four-points" size={19} color={COLORS.accent} />
+            </Pressable>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/account')}>
+              <MaterialCommunityIcons name="account-circle-outline" size={20} color={COLORS.ink} />
             </Pressable>
           </View>
         </View>
