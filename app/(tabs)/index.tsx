@@ -1,19 +1,31 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SCENARIOS } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { useSearch } from '@/contexts/SearchContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/useFavorites';
+import { isPremiumUser } from '@/lib/purchases';
 
-type LevelFilter = 'all' | 'beginner' | 'intermediate';
+type LevelFilter = 'all' | 'beginner' | 'intermediate' | 'premium';
 
 export default function HomeScreen() {
   const router = useRouter();
   const { searchQuery } = useSearch();
+  const { user } = useAuth();
+  const { favoriteIds, toggleFavorite } = useFavorites();
 
   const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
+  const [hasPremium, setHasPremium] = useState(false);
+
+  useFocusEffect(
+      useCallback(() => {
+        isPremiumUser().then(setHasPremium);
+      }, [])
+  );
 
   const filteredScenarios = useMemo(() => {
     let list = SCENARIOS;
@@ -22,6 +34,8 @@ export default function HomeScreen() {
       list = list.filter((s) => s.level === 'A1' || s.level === 'A2');
     } else if (levelFilter === 'intermediate') {
       list = list.filter((s) => s.level === 'B1' || s.level === 'B2');
+    } else if (levelFilter === 'premium') {
+      list = list.filter((s) => s.isPremium);
     }
 
     if (searchQuery.trim()) {
@@ -40,6 +54,11 @@ export default function HomeScreen() {
     }
     return filteredScenarios;
   }, [filteredScenarios]);
+
+  function handleToggleFavorite(scenarioId: string) {
+    if (!user) return;
+    toggleFavorite(scenarioId);
+  }
 
   return (
       <View style={styles.container}>
@@ -66,6 +85,11 @@ export default function HomeScreen() {
                     active={levelFilter === 'intermediate'}
                     onPress={() => setLevelFilter('intermediate')}
                 />
+                <FilterChip
+                    label="Premium"
+                    active={levelFilter === 'premium'}
+                    onPress={() => setLevelFilter('premium')}
+                />
               </View>
             }
             ListEmptyComponent={
@@ -79,12 +103,25 @@ export default function HomeScreen() {
                 return <View style={[styles.card, styles.cardPlaceholder]} />;
               }
               const style = SCENARIO_STYLE[item.id];
+              const isFavorite = favoriteIds.includes(item.id);
               return (
                   <Pressable
                       style={styles.card}
                       onPress={() => router.push({ pathname: '/scenario/[id]', params: { id: item.id } })}
                   >
-                    {item.isPremium && (
+                    <Pressable
+                        style={styles.favoriteButton}
+                        onPress={() => handleToggleFavorite(item.id)}
+                        hitSlop={8}
+                    >
+                      <MaterialCommunityIcons
+                          name={isFavorite ? 'heart' : 'heart-outline'}
+                          size={16}
+                          color={isFavorite ? COLORS.accent : '#fff'}
+                      />
+                    </Pressable>
+
+                    {item.isPremium && !hasPremium && (
                         <View style={styles.premiumBadge}>
                           <MaterialCommunityIcons name="lock" size={11} color="#fff" />
                         </View>
@@ -177,6 +214,18 @@ const styles = StyleSheet.create({
   cardPlaceholder: {
     backgroundColor: 'transparent',
     borderWidth: 0,
+  },
+  favoriteButton: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#00000055',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 2,
   },
   premiumBadge: {
     position: 'absolute',

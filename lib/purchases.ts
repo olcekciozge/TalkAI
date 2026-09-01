@@ -64,3 +64,19 @@ export async function restorePurchases(): Promise<boolean> {
         return false;
     }
 }
+
+export async function identifyPurchasesUser(userId: string): Promise<void> {
+    try {
+        await Purchases.logIn(userId);
+    } catch (err) {
+        console.error('identifyPurchasesUser error:', err);
+    }
+}
+
+export async function resetPurchasesUser(): Promise<void> {
+    try {
+        await Purchases.logOut();
+    } catch (err) {
+        console.error('resetPurchasesUser error:', err);
+    }
+}

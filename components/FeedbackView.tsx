@@ -25,7 +25,7 @@ export default function FeedbackView({ feedback, overallScore, scenarioTitle, ac
 
             <Text style={styles.summary}>{feedback.summary}</Text>
 
-            <Text style={styles.sectionLabel}>Scores</Text>
+            <Text style={styles.sectionLabel}>SCORES</Text>
             <View style={styles.list}>
                 <ScoreRow label="Grammar" score={feedback.grammar.score} comment={feedback.grammar.comment} />
                 <ScoreRow label="Fluency" score={feedback.fluency.score} comment={feedback.fluency.comment} />
@@ -38,7 +38,7 @@ export default function FeedbackView({ feedback, overallScore, scenarioTitle, ac
 
             {feedback.corrections.length > 0 && (
                 <>
-                    <Text style={styles.sectionLabel}>Corrections</Text>
+                    <Text style={styles.sectionLabel}>CORRECTIONS</Text>
                     <View style={styles.improvementList}>
                         {feedback.corrections.map((item, i) => (
                             <View key={i} style={styles.improvementCard}>
@@ -59,7 +59,7 @@ export default function FeedbackView({ feedback, overallScore, scenarioTitle, ac
 
             {feedback.better_expressions.length > 0 && (
                 <>
-                    <Text style={styles.sectionLabel}>Try saying it this way</Text>
+                    <Text style={styles.sectionLabel}>TRY SAYING IT THIS WAY</Text>
                     <View style={styles.improvementList}>
                         {feedback.better_expressions.map((item, i) => (
                             <View key={i} style={styles.improvementCard}>
@@ -110,7 +110,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: COLORS.inkMuted,
-        textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginTop: 24,
         marginBottom: 12,

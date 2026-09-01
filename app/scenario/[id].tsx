@@ -6,6 +6,7 @@ import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
 import { FOOTER_BOTTOM_OFFSET } from '@/constants/layout';
 import { isPremiumUser } from '@/lib/purchases';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/useFavorites';
 
 export default function ScenarioDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -13,6 +14,7 @@ export default function ScenarioDetailScreen() {
     const scenario = getScenarioById(id);
     const style = SCENARIO_STYLE[id];
     const { user } = useAuth();
+    const { favoriteIds, toggleFavorite } = useFavorites();
 
     if (!scenario) {
         return (
@@ -20,6 +22,13 @@ export default function ScenarioDetailScreen() {
                 <Text style={styles.notFound}>Scenario not found.</Text>
             </View>
         );
+    }
+
+    const isFavorite = favoriteIds.includes(scenario.id);
+
+    function handleToggleFavorite() {
+        if (!user) return;
+        toggleFavorite(scenario!.id);
     }
 
     const goToLive = () => {
@@ -51,8 +60,17 @@ export default function ScenarioDetailScreen() {
             <Stack.Screen options={{ title: scenario.title }} />
 
             <ScrollView contentContainerStyle={styles.scroll}>
-                <View style={[styles.iconWrap, { backgroundColor: style.color + '1A' }]}>
-                    <MaterialCommunityIcons name={style.icon as any} size={40} color={style.color} />
+                <View style={styles.iconRow}>
+                    <View style={[styles.iconWrap, { backgroundColor: style.color + '1A' }]}>
+                        <MaterialCommunityIcons name={style.icon as any} size={40} color={style.color} />
+                    </View>
+                    <Pressable style={styles.favoriteButton} onPress={handleToggleFavorite} hitSlop={8}>
+                        <MaterialCommunityIcons
+                            name={isFavorite ? 'heart' : 'heart-outline'}
+                            size={22}
+                            color={isFavorite ? COLORS.accent : COLORS.inkMuted}
+                        />
+                    </Pressable>
                 </View>
 
                 <Text style={styles.title}>{scenario.title}</Text>
@@ -75,7 +93,11 @@ export default function ScenarioDetailScreen() {
 
                 <Text style={styles.summary}>{scenario.summary}</Text>
 
-                <Text style={styles.sectionLabel}>What you'll practice</Text>
+                {/* "What you'll practice" yerine dogrudan buyuk harfle
+                    yaziyoruz - textTransform:'uppercase' Turkce locale'de
+                    kucuk "i"yi "İ" yapan bilinen bir React Native hatasina
+                    yol aciyordu (bkz. FeedbackView.tsx'teki ayni duzeltme). */}
+                <Text style={styles.sectionLabel}>WHAT YOU'LL PRACTICE</Text>
                 <View style={styles.taskList}>
                     {scenario.tasks.map((task, i) => (
                         <View key={i} style={styles.taskRow}>
@@ -88,8 +110,10 @@ export default function ScenarioDetailScreen() {
 
             <View style={styles.footer}>
                 <Pressable style={[styles.startButton, { backgroundColor: style.color }]} onPress={handleStart}>
-                    <MaterialCommunityIcons name="microphone" size={20} color="#fff" />
-                    <Text style={styles.startButtonText}>Start speaking</Text>
+                    <MaterialCommunityIcons name={user ? 'microphone' : 'login'} size={20} color="#fff" />
+                    <Text style={styles.startButtonText}>
+                        {user ? 'Start speaking' : 'Sign in to start speaking'}
+                    </Text>
                 </Pressable>
             </View>
         </View>
@@ -115,6 +139,12 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 100,
     },
+    iconRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        width: '100%',
+    },
     iconWrap: {
         width: 72,
         height: 72,
@@ -122,6 +152,16 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: 16,
+    },
+    favoriteButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: COLORS.card,
+        borderWidth: 1,
+        borderColor: COLORS.border,
     },
     title: {
         fontSize: 26,
@@ -168,7 +208,6 @@ const styles = StyleSheet.create({
         fontSize: 13,
         fontWeight: '700',
         color: COLORS.inkMuted,
-        textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginTop: 28,
         marginBottom: 12,
