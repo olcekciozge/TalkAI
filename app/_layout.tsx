@@ -12,6 +12,7 @@ import { initPurchases } from '@/lib/purchases';
 import { COLORS } from '@/constants/scenarioStyles';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { SearchProvider, useSearch } from '@/contexts/SearchContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export {
   ErrorBoundary,
@@ -53,9 +54,11 @@ export default function RootLayout() {
   }
 
   return (
-      <SearchProvider>
-        <RootLayoutNav />
-      </SearchProvider>
+      <AuthProvider>
+        <SearchProvider>
+          <RootLayoutNav />
+        </SearchProvider>
+      </AuthProvider>
   );
 }
 
@@ -79,6 +82,7 @@ function RootLayoutNav() {
                 <Stack.Screen name="feedback/result" />
                 <Stack.Screen name="history/[id]" />
                 <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
+                <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
               </Stack>
             </View>
 

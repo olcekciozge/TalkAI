@@ -1,7 +1,5 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
 
-// Backend'in döndürdüğü feedback şeması.
-// Burada tek bir yerde tanımlıyoruz ki result.tsx ve history ekranları birbirinden farklı tipler kullanıp karışıklık çıkarmasın.
 export type FeedbackData = {
     grammar: { score: number; comment: string };
     fluency: { score: number; comment: string };
@@ -26,27 +24,66 @@ export type StoredSession = {
     transcript?: TranscriptEntry[];
 };
 
-const STORAGE_KEY = 'talkai_sessions';
-
-export async function saveSession(session: StoredSession): Promise<void> {
-    const existing = await getAllSessions();
-    const updated = [session, ...existing];
-    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+function rowToStoredSession(row: any): StoredSession {
+    return {
+        id: row.id,
+        scenarioId: row.scenario_id,
+        scenarioTitle: row.scenario_title,
+        date: row.created_at,
+        overallScore: row.overall_score,
+        feedback: row.feedback,
+        transcript: row.transcript ?? [],
+    };
 }
 
-export async function getAllSessions(): Promise<StoredSession[]> {
-    try {
-        const raw = await AsyncStorage.getItem(STORAGE_KEY);
-        if (!raw) return [];
-        const parsed: StoredSession[] = JSON.parse(raw);
-        return parsed.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    } catch (err) {
-        console.error('getAllSessions error:', err);
-        return [];
+
+export async function saveSession(session: StoredSession): Promise<void> {
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        console.error('saveSession: authenticated user yok, kayit atlandi.');
+        return;
+    }
+
+    const { error } = await supabase.from('sessions').insert({
+        user_id: user.id,
+        scenario_id: session.scenarioId,
+        scenario_title: session.scenarioTitle,
+        // overall_score kolonu integer - Math.round ile garanti altina
+        // aliyoruz, caller'da yuvarlama unutulmus olsa bile insert patlamasin.
+        overall_score: Math.round(session.overallScore),
+        feedback: session.feedback,
+        transcript: session.transcript ?? [],
+    });
+
+    if (error) {
+        console.error('saveSession error:', error.message);
     }
 }
 
+export async function getAllSessions(): Promise<StoredSession[]> {
+    const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error('getAllSessions error:', error.message);
+        return [];
+    }
+
+    return (data ?? []).map(rowToStoredSession);
+}
+
 export async function getSessionById(id: string): Promise<StoredSession | undefined> {
-    const all = await getAllSessions();
-    return all.find((s) => s.id === id);
+    const { data, error } = await supabase.from('sessions').select('*').eq('id', id).single();
+
+    if (error) {
+        console.error('getSessionById error:', error.message);
+        return undefined;
+    }
+
+    return data ? rowToStoredSession(data) : undefined;
 }

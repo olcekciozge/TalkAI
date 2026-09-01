@@ -5,12 +5,14 @@ import { getScenarioById } from '@/constants/scenarios';
 import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
 import { FOOTER_BOTTOM_OFFSET } from '@/constants/layout';
 import { isPremiumUser } from '@/lib/purchases';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ScenarioDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
     const router = useRouter();
     const scenario = getScenarioById(id);
     const style = SCENARIO_STYLE[id];
+    const { user } = useAuth();
 
     if (!scenario) {
         return (
@@ -25,6 +27,13 @@ export default function ScenarioDetailScreen() {
     };
 
     const handleStart = async () => {
+        if (!user) {
+            router.push({
+                pathname: '/auth',
+                params: { returnTo: `/scenario/${scenario.id}` },
+            });
+            return;
+        }
         if (!scenario.isPremium) {
             goToLive();
             return;
