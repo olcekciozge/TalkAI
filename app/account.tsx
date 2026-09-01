@@ -1,28 +1,36 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, Text, View, Pressable, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import {
+    StyleSheet,
+    Text,
+    View,
+    Pressable,
+    ScrollView,
+    ActivityIndicator,
+    Alert,
+    TextInput,
+} from 'react-native';
 import { useFocusEffect, useRouter, Stack } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { COLORS } from '@/constants/scenarioStyles';
-import { SCENARIOS, type Level } from '@/constants/scenarios';
+import { SCENARIO_STYLE, COLORS } from '@/constants/scenarioStyles';
+import { SCENARIOS } from '@/constants/scenarios';
 import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { useAuth } from '@/contexts/AuthContext';
+import { useFavorites } from '@/hooks/useFavorites';
 import { getProfile, updateProfile, getSessionStats, type Profile, type SessionStats } from '@/lib/profile';
-
-const LEVELS: Level[] = ['A1', 'A2', 'B1', 'B2'];
 
 export default function AccountScreen() {
     const router = useRouter();
     const { user, signOut } = useAuth();
+    const { favoriteIds, toggleFavorite } = useFavorites();
 
     const [loading, setLoading] = useState(true);
     const [profile, setProfile] = useState<Profile | null>(null);
     const [stats, setStats] = useState<SessionStats | null>(null);
-    const [savingLevel, setSavingLevel] = useState(false);
-    const [savingFavorite, setSavingFavorite] = useState<string | null>(null);
 
-    // useFocusEffect: her profile ekranina donuste (mesela yeni bir session
-    // tamamlayip geri gelince) istatistikler guncel gelsin diye, sadece
-    // ilk mount'ta degil.
+    const [editingName, setEditingName] = useState(false);
+    const [nameDraft, setNameDraft] = useState('');
+    const [savingName, setSavingName] = useState(false);
+
     useFocusEffect(
         useCallback(() => {
             let active = true;
@@ -39,32 +47,20 @@ export default function AccountScreen() {
         }, [])
     );
 
-    async function handleSelectLevel(level: Level) {
-        if (!profile) return;
-        const newLevel = profile.targetLevel === level ? null : level;
-        setSavingLevel(true);
-        setProfile({ ...profile, targetLevel: newLevel });
-        const { error } = await updateProfile({ targetLevel: newLevel });
-        setSavingLevel(false);
-        if (error) {
-            console.error('updateProfile (level) error:', error);
-        }
+    function startEditingName() {
+        setNameDraft(profile?.displayName ?? '');
+        setEditingName(true);
     }
 
-    async function handleToggleFavorite(scenarioId: string) {
+    async function saveName() {
         if (!profile) return;
-        const isFavorite = profile.favoriteScenarioIds.includes(scenarioId);
-        const newFavorites = isFavorite
-            ? profile.favoriteScenarioIds.filter((id) => id !== scenarioId)
-            : [...profile.favoriteScenarioIds, scenarioId];
-
-        setSavingFavorite(scenarioId);
-        setProfile({ ...profile, favoriteScenarioIds: newFavorites });
-        const { error } = await updateProfile({ favoriteScenarioIds: newFavorites });
-        setSavingFavorite(null);
-        if (error) {
-            console.error('updateProfile (favorites) error:', error);
-        }
+        const trimmed = nameDraft.trim();
+        setSavingName(true);
+        setProfile({ ...profile, displayName: trimmed || null });
+        const { error } = await updateProfile({ displayName: trimmed || null });
+        setSavingName(false);
+        setEditingName(false);
+        if (error) console.error('updateProfile (name) error:', error);
     }
 
     function handleSignOut() {
@@ -103,22 +99,64 @@ export default function AccountScreen() {
         );
     }
 
+    const favoriteScenarios = SCENARIOS.filter((s) => favoriteIds.includes(s.id));
+
     return (
         <View style={styles.container}>
             <Stack.Screen options={{ title: 'Profile' }} />
             <ScrollView contentContainerStyle={styles.scroll}>
-                <View style={styles.avatarWrap}>
-                    <MaterialCommunityIcons name="account-circle" size={64} color={COLORS.accent} />
-                </View>
-                <Text style={styles.email}>{profile.email}</Text>
+                <View style={styles.headerRow}>
+                    <View style={styles.headerLeft}>
+                        <View style={styles.avatarWrap}>
+                            <MaterialCommunityIcons name="account-circle" size={64} color={COLORS.accent} />
+                        </View>
 
-                <Text style={styles.sectionLabel}>Your Stats</Text>
+                        {editingName ? (
+                            <View style={styles.nameEditRow}>
+                                <TextInput
+                                    style={styles.nameInput}
+                                    value={nameDraft}
+                                    onChangeText={setNameDraft}
+                                    placeholder="Your name"
+                                    placeholderTextColor={COLORS.inkMuted}
+                                    autoFocus
+                                    onSubmitEditing={saveName}
+                                    returnKeyType="done"
+                                />
+                                <Pressable onPress={saveName} disabled={savingName} hitSlop={10}>
+                                    {savingName ? (
+                                        <ActivityIndicator size="small" color={COLORS.ink} />
+                                    ) : (
+                                        <MaterialCommunityIcons name="check" size={22} color={COLORS.accent} />
+                                    )}
+                                </Pressable>
+                            </View>
+                        ) : (
+                            <Pressable style={styles.nameRow} onPress={startEditingName}>
+                                <Text style={styles.name}>{profile.displayName || 'Add your name'}</Text>
+                                <MaterialCommunityIcons
+                                    name="pencil-outline"
+                                    size={14}
+                                    color={COLORS.inkMuted}
+                                    style={styles.namePencil}
+                                />
+                            </Pressable>
+                        )}
+                        <Text style={styles.email}>{profile.email}</Text>
+                    </View>
+
+                    <View style={styles.avgScoreWrap}>
+                        <View style={styles.avgScoreCircle}>
+                            <Text style={styles.avgScoreNumber}>
+                                {stats.averageScore !== null ? stats.averageScore : '—'}
+                            </Text>
+                        </View>
+                        <Text style={styles.avgScoreLabel}>Average Score</Text>
+                    </View>
+                </View>
+
+                <Text style={styles.sectionLabel}>YOUR STATS</Text>
                 <View style={styles.statsGrid}>
-                    <StatCard label="Sessions" value={String(stats.totalSessions)} />
-                    <StatCard
-                        label="Avg. Score"
-                        value={stats.averageScore !== null ? String(stats.averageScore) : '—'}
-                    />
                     <StatCard
                         label="Grammar"
                         value={stats.averageGrammar !== null ? `${stats.averageGrammar}/10` : '—'}
@@ -133,51 +171,62 @@ export default function AccountScreen() {
                     />
                 </View>
 
-                <Text style={styles.sectionLabel}>Target Level</Text>
-                <View style={styles.chipRow}>
-                    {LEVELS.map((level) => {
-                        const selected = profile.targetLevel === level;
-                        return (
-                            <Pressable
-                                key={level}
-                                style={[styles.levelChip, selected && styles.levelChipSelected]}
-                                onPress={() => handleSelectLevel(level)}
-                                disabled={savingLevel}
-                            >
-                                <Text style={[styles.levelChipText, selected && styles.levelChipTextSelected]}>
-                                    {level}
-                                </Text>
-                            </Pressable>
-                        );
-                    })}
-                </View>
+                <Text style={styles.sectionLabel}>FAVORITE LIST</Text>
+                {favoriteScenarios.length === 0 ? (
+                    <Text style={styles.emptyFavoritesText}>
+                        No favorites yet — tap the heart on a scenario to add one.
+                    </Text>
+                ) : (
+                    <View style={styles.favoritesList}>
+                        {favoriteScenarios.map((scenario) => {
+                            const style = SCENARIO_STYLE[scenario.id];
+                            return (
+                                <Pressable
+                                    key={scenario.id}
+                                    style={styles.favoriteRow}
+                                    onPress={() =>
+                                        router.push({ pathname: '/scenario/[id]', params: { id: scenario.id } })
+                                    }
+                                >
+                                    <View style={styles.favoriteRowLeft}>
+                                        <View
+                                            style={[
+                                                styles.favoriteIconWrap,
+                                                { backgroundColor: style.color + '1A' },
+                                            ]}
+                                        >
+                                            <MaterialCommunityIcons
+                                                name={style.icon as any}
+                                                size={18}
+                                                color={style.color}
+                                            />
+                                        </View>
+                                        <Text style={styles.favoriteRowText}>{scenario.title}</Text>
+                                    </View>
+                                    <Pressable onPress={() => toggleFavorite(scenario.id)} hitSlop={10}>
+                                        <MaterialCommunityIcons name="heart" size={20} color={COLORS.accent} />
+                                    </Pressable>
+                                </Pressable>
+                            );
+                        })}
+                    </View>
+                )}
 
-                <Text style={styles.sectionLabel}>Favorite Scenarios</Text>
-                <View style={styles.favoritesList}>
-                    {SCENARIOS.map((scenario) => {
-                        const isFavorite = profile.favoriteScenarioIds.includes(scenario.id);
-                        const isSaving = savingFavorite === scenario.id;
-                        return (
-                            <Pressable
-                                key={scenario.id}
-                                style={styles.favoriteRow}
-                                onPress={() => handleToggleFavorite(scenario.id)}
-                                disabled={isSaving}
-                            >
-                                <Text style={styles.favoriteRowText}>{scenario.title}</Text>
-                                {isSaving ? (
-                                    <ActivityIndicator size="small" color={COLORS.inkMuted} />
-                                ) : (
-                                    <MaterialCommunityIcons
-                                        name={isFavorite ? 'heart' : 'heart-outline'}
-                                        size={20}
-                                        color={isFavorite ? COLORS.accent : COLORS.inkMuted}
-                                    />
-                                )}
-                            </Pressable>
-                        );
-                    })}
-                </View>
+                <Pressable
+                    style={styles.linkRow}
+                    onPress={() => router.push('/(tabs)/profile')}
+                >
+                    <View style={styles.linkRowLeft}>
+                        <MaterialCommunityIcons name="history" size={20} color={COLORS.ink} />
+                        <Text style={styles.linkRowText}>History</Text>
+                    </View>
+                    <View style={styles.linkRowRight}>
+                        <Text style={styles.linkRowCount}>
+                            {stats.totalSessions} {stats.totalSessions === 1 ? 'session' : 'sessions'}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-right" size={20} color={COLORS.inkMuted} />
+                    </View>
+                </Pressable>
 
                 <Pressable style={styles.signOutButton} onPress={handleSignOut}>
                     <MaterialCommunityIcons name="logout" size={18} color="#B23B3B" />
@@ -216,15 +265,52 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     signInButtonText: { color: '#fff', fontWeight: '700' },
-    scroll: { padding: 20, paddingBottom: TAB_BAR_CLEARANCE, alignItems: 'center' },
-    avatarWrap: { marginTop: 8, marginBottom: 6 },
-    email: { fontSize: 16, fontWeight: '700', color: COLORS.ink, marginBottom: 20 },
+    scroll: { padding: 20, paddingBottom: TAB_BAR_CLEARANCE },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 48,
+        width: '100%',
+        marginTop: 8,
+    },
+    headerLeft: {
+        alignItems: 'center',
+    },
+    avatarWrap: { marginBottom: 6 },
+    nameRow: {
+        position: 'relative',
+        alignItems: 'center',
+    },
+    namePencil: {
+        position: 'absolute',
+        right: -18,
+        top: 3,
+    },
+    name: { fontSize: 18, fontWeight: '700', color: COLORS.ink },
+    nameEditRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+        width: '100%',
+        maxWidth: 260,
+    },
+    nameInput: {
+        flex: 1,
+        borderBottomWidth: 1,
+        borderBottomColor: COLORS.border,
+        fontSize: 16,
+        fontWeight: '600',
+        color: COLORS.ink,
+        paddingVertical: 4,
+        textAlign: 'center',
+    },
+    email: { fontSize: 12, color: COLORS.inkMuted, marginTop: 4, marginBottom: 20 },
     sectionLabel: {
         alignSelf: 'flex-start',
         fontSize: 13,
         fontWeight: '700',
         color: COLORS.inkMuted,
-        textTransform: 'uppercase',
         letterSpacing: 0.5,
         marginTop: 20,
         marginBottom: 12,
@@ -235,6 +321,18 @@ const styles = StyleSheet.create({
         flexWrap: 'wrap',
         gap: 10,
     },
+    avgScoreWrap: { alignItems: 'center', marginBottom: 20 },
+    avgScoreCircle: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        borderWidth: 4,
+        borderColor: COLORS.accent,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avgScoreNumber: { fontSize: 28, fontWeight: '700', color: COLORS.ink },
+    avgScoreLabel: { marginTop: 10, fontSize: 13, color: COLORS.inkMuted, fontWeight: '600' },
     statCard: {
         flexBasis: '31%',
         flexGrow: 1,
@@ -247,22 +345,12 @@ const styles = StyleSheet.create({
     },
     statValue: { fontSize: 20, fontWeight: '700', color: COLORS.ink },
     statLabel: { fontSize: 11, color: COLORS.inkMuted, marginTop: 4, textAlign: 'center' },
-    chipRow: { flexDirection: 'row', gap: 10, width: '100%' },
-    levelChip: {
-        flex: 1,
-        alignItems: 'center',
-        paddingVertical: 12,
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        backgroundColor: COLORS.card,
+    emptyFavoritesText: {
+        fontSize: 13,
+        color: COLORS.inkMuted,
+        alignSelf: 'flex-start',
+        lineHeight: 18,
     },
-    levelChipSelected: {
-        backgroundColor: COLORS.ink,
-        borderColor: COLORS.ink,
-    },
-    levelChipText: { fontWeight: '700', color: COLORS.ink },
-    levelChipTextSelected: { color: '#fff' },
     favoritesList: { width: '100%', gap: 8 },
     favoriteRow: {
         flexDirection: 'row',
@@ -276,16 +364,50 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     favoriteRowText: { fontSize: 14, color: COLORS.ink, fontWeight: '600' },
+    favoriteRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    favoriteIconWrap: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    linkRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        width: '100%',
+        paddingVertical: 14,
+        marginTop: 28,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+    },
+    linkRowLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    linkRowText: { fontSize: 14, fontWeight: '600', color: COLORS.ink },
+    linkRowRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 4,
+    },
+    linkRowCount: { fontSize: 13, color: COLORS.inkMuted, fontWeight: '600' },
     signOutButton: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
-        marginTop: 28,
-        borderWidth: 1,
-        borderColor: '#B23B3B44',
-        borderRadius: 12,
-        paddingVertical: 13,
+        marginTop: 4,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        paddingTop: 18,
+        paddingBottom: 6,
         width: '100%',
     },
     signOutButtonText: { color: '#B23B3B', fontWeight: '700', fontSize: 14 },

@@ -4,6 +4,7 @@ import type { Level } from '@/constants/scenarios';
 export type Profile = {
     id: string;
     email: string | null;
+    displayName: string | null;
     targetLevel: Level | null;
     favoriteScenarioIds: string[];
 };
@@ -20,6 +21,7 @@ function rowToProfile(row: any): Profile {
     return {
         id: row.id,
         email: row.email,
+        displayName: row.display_name,
         targetLevel: row.target_level,
         favoriteScenarioIds: row.favorite_scenario_ids ?? [],
     };
@@ -41,6 +43,7 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function updateProfile(patch: {
+    displayName?: string | null;
     targetLevel?: Level | null;
     favoriteScenarioIds?: string[];
 }): Promise<{ error: string | null }> {
@@ -50,6 +53,7 @@ export async function updateProfile(patch: {
     if (!user) return { error: 'Not signed in.' };
 
     const updatePayload: Record<string, any> = {};
+    if (patch.displayName !== undefined) updatePayload.display_name = patch.displayName;
     if (patch.targetLevel !== undefined) updatePayload.target_level = patch.targetLevel;
     if (patch.favoriteScenarioIds !== undefined) {
         updatePayload.favorite_scenario_ids = patch.favoriteScenarioIds;

@@ -12,7 +12,7 @@ import { initPurchases } from '@/lib/purchases';
 import { COLORS } from '@/constants/scenarioStyles';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { SearchProvider, useSearch } from '@/contexts/SearchContext';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 export {
   ErrorBoundary,
@@ -99,6 +99,7 @@ function GlobalTopBar() {
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
   const { searchOpen, setSearchOpen, searchQuery, setSearchQuery } = useSearch();
+  const { user } = useAuth();
   const isHome = pathname === '/' || pathname === '/(tabs)' || pathname === '/index';
 
   function handleSearchPress() {
@@ -136,12 +137,15 @@ function GlobalTopBar() {
                   color={COLORS.ink}
               />
             </Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/paywall')}>
-              <MaterialCommunityIcons name="star-four-points" size={19} color={COLORS.accent} />
-            </Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/account')}>
-              <MaterialCommunityIcons name="account-circle-outline" size={20} color={COLORS.ink} />
-            </Pressable>
+            {/* Hesabi olmayan (giris yapmamis) kullanici zaten premium
+                satin alamaz - o yuzden tac ikonunu sadece giris yapmis
+                kullaniciya gosteriyoruz. Profil'e giden ikon buradan
+                kalkti, artik alt bardaki "Profile" sekmesinden erisiliyor. */}
+            {user && (
+                <Pressable style={styles.iconButton} onPress={() => router.push('/paywall')}>
+                  <MaterialCommunityIcons name="star-four-points" size={19} color={COLORS.accent} />
+                </Pressable>
+            )}
           </View>
         </View>
       </View>
@@ -153,7 +157,7 @@ function GlobalBottomBar({ pathname }: { pathname: string | null }) {
 
   const tabs = [
     { label: 'Homepage', path: '/(tabs)', match: ['/', '/(tabs)', '/index'] },
-    { label: 'History', path: '/(tabs)/profile', match: ['/(tabs)/profile', '/profile'] },
+    { label: 'Profile', path: '/account', match: ['/account'] },
   ];
 
   return (

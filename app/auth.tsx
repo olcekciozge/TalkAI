@@ -10,7 +10,6 @@ import {
     Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@/constants/scenarioStyles';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -58,10 +57,6 @@ export default function AuthScreen() {
         }
 
         if (mode === 'signUp') {
-            // Supabase varsayilani: email confirmation acik oldugunda
-            // signUp basarili donse bile kullanicinin onaylanmis bir
-            // session'i olmuyor. Bu yuzden direkt gecis yapmiyoruz,
-            // sign-in moduna donup bilgilendiriyoruz.
             setMode('signIn');
             setPassword('');
             setInfoMsg('Account created. Check your email to confirm, then sign in.');
@@ -125,24 +120,6 @@ export default function AuthScreen() {
                             {mode === 'signIn' ? 'Sign In' : 'Create Account'}
                         </Text>
                     )}
-                </Pressable>
-
-                <View style={styles.dividerRow}>
-                    <View style={styles.dividerLine} />
-                    <Text style={styles.dividerText}>or</Text>
-                    <View style={styles.dividerLine} />
-                </View>
-
-                {/* Google/Apple: Supabase dashboard + Google Cloud/Apple Developer
-                    tarafinda provider kurulumu tamamlanana kadar bu butonlar
-                    pasif duruyor. Kurulum bitince onPress baglanip aktif olacak. */}
-                <Pressable style={[styles.oauthButton, styles.oauthButtonDisabled]} disabled>
-                    <MaterialCommunityIcons name="google" size={18} color={COLORS.inkMuted} />
-                    <Text style={styles.oauthButtonText}>Continue with Google (soon)</Text>
-                </Pressable>
-                <Pressable style={[styles.oauthButton, styles.oauthButtonDisabled]} disabled>
-                    <MaterialCommunityIcons name="apple" size={18} color={COLORS.inkMuted} />
-                    <Text style={styles.oauthButtonText}>Continue with Apple (soon)</Text>
                 </Pressable>
 
                 <Pressable
@@ -220,40 +197,6 @@ const styles = StyleSheet.create({
         color: '#fff',
         fontSize: 15,
         fontWeight: '700',
-    },
-    dividerRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginVertical: 20,
-        gap: 10,
-    },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: COLORS.border,
-    },
-    dividerText: {
-        color: COLORS.inkMuted,
-        fontSize: 12,
-    },
-    oauthButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-        borderRadius: 12,
-        paddingVertical: 13,
-        marginBottom: 10,
-    },
-    oauthButtonDisabled: {
-        opacity: 0.5,
-    },
-    oauthButtonText: {
-        color: COLORS.inkMuted,
-        fontSize: 14,
-        fontWeight: '600',
     },
     switchModeButton: {
         marginTop: 12,
