@@ -88,12 +88,34 @@ export default function LiveSessionScreen() {
             const pc = new RTCPeerConnection();
             peerConnection.current = pc;
 
-            pc.addEventListener('track', () => {
-                console.log('REMOTE TRACK RECEIVED');
+            pc.addEventListener('track', (event: any) => {
+                console.log('REMOTE TRACK RECEIVED', {
+                    kind: event.track?.kind,
+                    id: event.track?.id,
+                    enabled: event.track?.enabled,
+                    muted: event.track?.muted,
+                    readyState: event.track?.readyState,
+                    streamCount: event.streams?.length,
+                });
+
+                // Bazi react-native-webrtc surumlerinde gelen track varsayilan
+                // olarak enabled=true olsa da, garanti altina almak icin acikca set ediyoruz.
+                if (event.track) {
+                    event.track.enabled = true;
+                }
+
                 // Uzak ses (AI sesi) gelince speaker'i zorla ac.
                 // Bunu track gelmeden yapmak native tarafta yaris durumuna
                 // (race condition) yol acip sesin bazen kesilmesine sebep olabiliyordu.
+                // Bazi cihazlarda setForceSpeakerphoneOn tek basina yetmiyor,
+                // setSpeakerphoneOn ile birlikte cagirmak daha guvenilir.
                 InCallManager.setForceSpeakerphoneOn(true);
+                InCallManager.setSpeakerphoneOn(true);
+
+                setTimeout(() => {
+                    InCallManager.setForceSpeakerphoneOn(true);
+                    InCallManager.setSpeakerphoneOn(true);
+                }, 500);
             });
 
             // Baglanti ortasinda kopma (network kaybi, sunucu tarafli kapama vb.) durumunu yakala
@@ -166,6 +188,7 @@ export default function LiveSessionScreen() {
                 if (data.type === 'response.output_audio_transcript.done') {
                     setTranscriptEntries((prev) => [...prev, { role: 'ai', text: data.transcript }]);
                 }
+                // Kullanicinin soyledigi cumle yazi haline getirildiginde buffer'a ekle.
                 if (data.type === 'conversation.item.input_audio_transcription.completed') {
                     setTranscriptEntries((prev) => [...prev, { role: 'user', text: data.transcript }]);
                 }
@@ -199,6 +222,11 @@ export default function LiveSessionScreen() {
 
     function cleanup() {
         stopTimer();
+        try {
+            InCallManager.stop();
+        } catch (err) {
+            console.log('InCallManager.stop() error:', err);
+        }
         audioSenderRef.current = null;
         if (dataChannel.current) {
             dataChannel.current.close();
