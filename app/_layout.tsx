@@ -1,9 +1,9 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack, usePathname, useRouter, useFocusEffect } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import 'react-native-reanimated';
@@ -102,18 +102,14 @@ function GlobalTopBar() {
   const { user } = useAuth();
   const isHome = pathname === '/' || pathname === '/(tabs)' || pathname === '/index';
 
-  // Tac/yildiz ikonunun kendisi premium durumuna gore degisiyor - dolu
-  // + altin renk (zaten premium'sin) vs. cerceveli + kirmizi (henuz degil,
-  // dokununca satin almaya davet ediyor). Ekrana her donuste tazeleniyor
-  // ki satin alip geri donunce aninda guncellensin.
   const [hasPremium, setHasPremium] = useState(false);
-  useFocusEffect(
-      useCallback(() => {
-        if (user) {
-          isPremiumUser().then(setHasPremium);
-        }
-      }, [user])
-  );
+  useEffect(() => {
+    if (user) {
+      isPremiumUser().then(setHasPremium);
+    } else {
+      setHasPremium(false);
+    }
+  }, [user, pathname]);
 
   function handleSearchPress() {
     if (!isHome) {
