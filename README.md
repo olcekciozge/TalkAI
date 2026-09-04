@@ -154,11 +154,6 @@ npx eas-cli build --platform android --profile preview
 - `transcriptionKeywords` in `constants/scenarios.ts` is defined but unused
   (not sent in the realtime `session.update` payload).
 
-## Post-MVP Backlog
-
-Google/Apple sign-in, Gemini Live/Grok Voice, product analytics,
-CEFR-adaptive difficulty, streaks/progress tracking, pronunciation feedback,
-remote scenario CMS, illustrated backgrounds/ambient sound.
 
 ## Demo Script
 
