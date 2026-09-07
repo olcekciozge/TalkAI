@@ -36,6 +36,10 @@ Built as a 3-week / 15-working-day internship MVP.
   24h+, configured entirely through a OneSignal Journey (no custom backend
   code). Push subscriptions are linked to the Supabase user id via
   `OneSignal.login()`/`logout()` on auth state changes.
+- **Product analytics** via Amplitude — tracks sign up/in/out, scenario
+  views, favorites, session start/end, feedback views, paywall views, and
+  purchases/restores. User identity is linked to the Supabase user id so
+  behavior can be traced per account, not just per device.
 
 ## Tech Stack
 
@@ -51,6 +55,8 @@ Built as a 3-week / 15-working-day internship MVP.
 - **Push notifications:** OneSignal (`react-native-onesignal@5.3.6`,
   `onesignal-expo-plugin@1.3.2` — see [Custom config plugins](#custom-config-plugins-plugins)
   for why these specific versions).
+- **Analytics:** Amplitude (`@amplitude/analytics-react-native`) for product
+  usage tracking.
 - **Tunneling:** ngrok (free static domain) for exposing the local backend
   during standalone APK testing/demos.
 
@@ -178,6 +184,17 @@ Project Settings → API.
    Notification step, then set the Journey live. No custom backend code is
    needed for the daily reminder — it's entirely dashboard-configured.
 
+**Amplitude (analytics):**
+1. Create a free project at [amplitude.com](https://amplitude.com) named
+   "TalkAI".
+2. Copy the project's API Key (Project Details → API Key) into `.env` as
+   `EXPO_PUBLIC_AMPLITUDE_API_KEY`.
+3. That's it — no dashboard configuration needed for events to start
+   flowing; `lib/analytics.ts` initializes the SDK and every tracked event
+   (see [Features](#features)) is sent automatically once a user interacts
+   with the app. Verify events are arriving under Amplitude's User
+   Look-Up / Event Explorer view.
+
 **Backend:**
 ```bash
 cd backend
@@ -285,6 +302,10 @@ for why release, not debug, is used).
   pins when the project upgrades to SDK 53+.
 - The daily reminder Journey re-engages any inactive subscriber; it isn't
   personalized per scenario or streak yet.
+- Analytics events are fired client-side only — there's no server-side
+  verification, so event volume could in theory be spoofed by a modified
+  client. Fine for an MVP's product-usage insights, not suitable as a
+  source of truth for anything security- or billing-sensitive.
 
 
 ## Demo Script
