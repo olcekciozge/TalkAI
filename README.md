@@ -28,6 +28,9 @@ Built as a 3-week / 15-working-day internship MVP.
 - **Premium paywall** via RevenueCat, with identity explicitly linked to the
   Supabase account (`Purchases.logIn`/`logOut` on auth changes) so
   entitlement follows the account, not the device.
+- **Standalone APK works on any network** — the backend is tunneled through
+  a free static ngrok domain, so the built APK doesn't need to be on the
+  same Wi-Fi as the dev machine (see [ngrok setup](#running-a-standalone-apk-via-ngrok)).
 
 ## Tech Stack
 
@@ -40,17 +43,19 @@ Built as a 3-week / 15-working-day internship MVP.
 - **AI:** OpenAI Realtime (`gpt-realtime-mini`) for conversation,
   `gpt-4o-mini` (`temperature: 0.3`, structured output) for feedback.
 - **Monetization:** RevenueCat, Test Store/sandbox.
+- **Tunneling:** ngrok (free static domain) for exposing the local backend
+  during standalone APK testing/demos.
 
 ## Architecture
 
 ```
 Expo App ──POST /api/realtime/token/──▶ Django Backend ──▶ OpenAI (mints ephemeral key)
-   │
+   │            (via ngrok tunnel)
    ├─ WebRTC session using that key ──▶ OpenAI Realtime API (gpt-realtime-mini)
    │  (live audio + transcript events)
    │
    └─ On "End Session" ──POST /api/realtime/feedback/──▶ Django ──▶ gpt-4o-mini
-      (transcript)                                        (JSON Schema feedback)
+      (transcript, via ngrok)                              (JSON Schema feedback)
               │
               └─ saveSession() ──▶ Supabase (profiles, sessions — RLS-protected)
 ```
@@ -68,6 +73,11 @@ Notable decisions:
   Django backend; the app gets a short-lived ephemeral token per session.
 - **RLS is the real access boundary**, not client-side filtering — every
   Supabase query relies on `auth.uid() = user_id` policies.
+- **Backend reachable via a static ngrok domain**, not a LAN IP — a LAN IP
+  baked into the APK at build time only works on that one network and
+  breaks the moment the phone or laptop changes networks. A free static
+  ngrok domain (`*.ngrok-free.dev`) stays constant regardless of network,
+  as long as the backend + ngrok are running on the demo machine.
 
 ## Project Structure
 
@@ -89,9 +99,33 @@ Notable decisions:
 ├── constants/                # scenarios, styles, layout
 ├── lib/                      # supabase, profile, purchases, sessionStorage
 ├── backend/                  # Django (config/, realtime/, requirements.txt)
+├── plugins/                  # Custom Expo config plugins (see below)
 ├── schema.sql                # Supabase schema (tables, RLS, triggers)
 └── eas.json                  # EAS Build profiles (preview → .apk)
 ```
+
+### Custom config plugins (`plugins/`)
+
+The native `android/` folder is generated fresh on every EAS build
+(Continuous Native Generation), so any hand-edit to files like
+`android/app/build.gradle` or `AndroidManifest.xml` gets wiped on the next
+build. These two plugins bake the necessary native changes into every
+prebuild instead:
+
+- **`withDebuggableManifest.js`** — forces `android:debuggable="true"` in
+  the manifest even for release builds. RevenueCat's SDK checks this native
+  flag (not the Gradle build type) to decide whether a Test Store API key
+  is allowed; without this, a `preview`/release build crashes on launch
+  with *"This app is using a test API key... The app will close now."*
+- **`withDisableHardcodedDebugModeLint.js`** — disables Android Lint's
+  `HardcodedDebugMode` check, which otherwise fails `lintVitalRelease` and
+  blocks the release build because `android:debuggable` is no longer
+  auto-assigned by the build type.
+
+Together these let `eas build --profile preview` produce a normal
+`assembleRelease` APK (JS bundle properly embedded, no Metro required)
+while still allowing the RevenueCat Test Store key to work without a
+crash.
 
 ## Setup
 
@@ -109,7 +143,7 @@ python manage.py migrate
 python manage.py runserver 0.0.0.0:8000
 ```
 
-**Frontend:**
+**Frontend (local dev, same Wi-Fi as backend):**
 ```bash
 npm install
 cp .env.example .env
@@ -121,11 +155,53 @@ npm run android
 Requires a Development Build (not Expo Go — native modules like
 `react-native-webrtc` aren't in Expo Go's fixed module set).
 
-**APK:**
+## Running a standalone APK via ngrok
+
+A LAN IP baked into `.env` only works while the phone is on the same
+Wi-Fi as the machine running the backend, and requires a full rebuild
+(~10–15 min) every time the network changes. Tunneling the backend through
+a free static ngrok domain removes that constraint — the same APK works on
+any network, as long as the backend + ngrok are running somewhere reachable.
+
+1. Sign up at [ngrok.com](https://ngrok.com) and reserve a free static
+   domain under **Domains** (e.g. `your-name.ngrok-free.dev`).
+2. Install the ngrok CLI and run `ngrok config add-authtoken <TOKEN>`
+   (token is in the ngrok dashboard).
+3. Start the backend as usual: `python manage.py runserver` (port 8000).
+4. In a second terminal, start the tunnel:
+   ```bash
+   ngrok http --url=your-name.ngrok-free.dev 8000
+   ```
+5. Point the app at the tunnel. **This must be set in two places:**
+  - Locally, in `.env`, for `npm run android` / dev builds:
+    ```
+    EXPO_PUBLIC_BACKEND_URL=https://your-name.ngrok-free.dev
+    ```
+  - On EAS, for `eas build`, since env vars are baked in at build time and
+    EAS reads its own stored values, not your local `.env`:
+    ```bash
+    npx eas-cli env:update --name EXPO_PUBLIC_BACKEND_URL \
+      --value "https://your-name.ngrok-free.dev" --environment preview
+    ```
+    Verify with `npx eas-cli env:list` (select `preview`) before building.
+6. ngrok's free tier shows an interstitial browser-warning page for
+   non-browser requests unless a header is sent — `live.tsx` and
+   `result.tsx` already add `ngrok-skip-browser-warning: true` to their
+   `fetch` calls, so this is handled automatically once the URL above is
+   set correctly.
+7. Build: `npx eas-cli build --profile preview --platform android`, install
+   the resulting APK, and test. The backend + ngrok tunnel must stay
+   running on the host machine for the app to work — this is a demo/dev
+   setup, not a deployment.
+
+## APK
+
 ```bash
 npx eas-cli build --platform android --profile preview
 ```
-`eas.json`'s `preview` profile already outputs a `.apk`.
+`eas.json`'s `preview` profile outputs a `.apk` (`assembleRelease` under
+the hood — see [Custom config plugins](#custom-config-plugins-plugins)
+for why release, not debug, is used).
 
 ## Scenarios
 
@@ -144,7 +220,9 @@ npx eas-cli build --platform android --profile preview
 - Email/password sign-in only — no Google/Apple (needs external OAuth setup).
 - Only OpenAI Realtime is wired up — no Gemini Live / Grok.
 - Monetization is sandbox/Test-Store only, single platform.
-- Django backend runs with `DEBUG = True`, `ALLOWED_HOSTS = ['*']` (local/demo only).
+- Django backend runs with `DEBUG = True`, `ALLOWED_HOSTS = ['*']` — fine
+  for local/demo use, but note that while the ngrok tunnel is active the
+  backend is reachable from the public internet, not just the demo device.
 - Fluency scoring is text-based (from transcript), not audio-based.
 - No swipe-back guard on the live call screen — only the on-screen End
   Session button triggers the confirmation dialog.
@@ -153,6 +231,10 @@ npx eas-cli build --platform android --profile preview
   support exists in code but is unverified.
 - `transcriptionKeywords` in `constants/scenarios.ts` is defined but unused
   (not sent in the realtime `session.update` payload).
+- `android:debuggable` is hardcoded to `true` in release builds (see
+  [Custom config plugins](#custom-config-plugins-plugins)) as a workaround
+  for a RevenueCat Test Store key check — fine for internal/demo builds,
+  but should be revisited before any real store release.
 
 
 ## Demo Script
