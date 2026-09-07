@@ -20,6 +20,7 @@
     },
     "android": {
       "package": "com.olcekciozge.talkai",
+      "googleServicesFile": "./google-services.json",
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
@@ -42,11 +43,13 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      ["onesignal-expo-plugin", { "mode": "development" }],
       "expo-router",
       "expo-asset",
       "@config-plugins/react-native-webrtc",
       "./plugins/withDebuggableManifest",
       "./plugins/withDisableHardcodedDebugModeLint",
+      "./plugins/withSkipKotlinMetadataVersionCheck",
       [
         "expo-build-properties",
         {
@@ -65,7 +68,8 @@
       },
       "eas": {
         "projectId": "5d04c2b3-c6ad-4982-85ce-6528de7060fd"
-      }
+      },
+      "oneSignalAppId": "9d09e14b-7ee1-4339-9a1a-25d8700b4ab6"
     }
   }
 }

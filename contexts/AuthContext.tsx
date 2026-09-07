@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import { OneSignal } from 'react-native-onesignal';
 import { supabase } from '@/lib/supabase';
 import { identifyPurchasesUser, resetPurchasesUser } from '@/lib/purchases';
 
@@ -29,6 +30,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (data.session?.user) {
                 previousUserId.current = data.session.user.id;
                 identifyPurchasesUser(data.session.user.id);
+                // OneSignal'deki push aboneligini Supabase user id'siyle
+                // eslestiriyoruz - boylece ileride kisiye ozel/segment
+                // bazli bildirim gonderebiliriz.
+                OneSignal.login(data.session.user.id);
             }
         });
 
@@ -38,9 +43,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             if (newSession?.user) {
                 previousUserId.current = newSession.user.id;
                 identifyPurchasesUser(newSession.user.id);
+                OneSignal.login(newSession.user.id);
             } else if (previousUserId.current) {
                 previousUserId.current = null;
                 resetPurchasesUser();
+                OneSignal.logout();
             }
         });
 

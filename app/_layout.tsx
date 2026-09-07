@@ -7,6 +7,8 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import 'react-native-reanimated';
+import { OneSignal } from 'react-native-onesignal';
+import Constants from 'expo-constants';
 import { useColorScheme } from '@/components/useColorScheme';
 import { initPurchases, isPremiumUser } from '@/lib/purchases';
 import { COLORS } from '@/constants/scenarioStyles';
@@ -47,6 +49,16 @@ export default function RootLayout() {
 
   useEffect(() => {
     initPurchases();
+  }, []);
+
+  useEffect(() => {
+    const oneSignalAppId = Constants.expoConfig?.extra?.oneSignalAppId;
+    if (!oneSignalAppId) {
+      console.error('oneSignalAppId app.json extra icinde tanimli degil.');
+      return;
+    }
+    OneSignal.initialize(oneSignalAppId);
+    OneSignal.Notifications.requestPermission(true);
   }, []);
 
   if (!loaded) {

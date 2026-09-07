@@ -31,6 +31,11 @@ Built as a 3-week / 15-working-day internship MVP.
 - **Standalone APK works on any network** — the backend is tunneled through
   a free static ngrok domain, so the built APK doesn't need to be on the
   same Wi-Fi as the dev machine (see [ngrok setup](#running-a-standalone-apk-via-ngrok)).
+- **Push notifications** via OneSignal — a daily re-engagement reminder
+  ("haven't practiced today?") is sent automatically to users inactive for
+  24h+, configured entirely through a OneSignal Journey (no custom backend
+  code). Push subscriptions are linked to the Supabase user id via
+  `OneSignal.login()`/`logout()` on auth state changes.
 
 ## Tech Stack
 
@@ -43,6 +48,9 @@ Built as a 3-week / 15-working-day internship MVP.
 - **AI:** OpenAI Realtime (`gpt-realtime-mini`) for conversation,
   `gpt-4o-mini` (`temperature: 0.3`, structured output) for feedback.
 - **Monetization:** RevenueCat, Test Store/sandbox.
+- **Push notifications:** OneSignal (`react-native-onesignal@5.3.6`,
+  `onesignal-expo-plugin@1.3.2` — see [Custom config plugins](#custom-config-plugins-plugins)
+  for why these specific versions).
 - **Tunneling:** ngrok (free static domain) for exposing the local backend
   during standalone APK testing/demos.
 
@@ -121,17 +129,54 @@ prebuild instead:
   `HardcodedDebugMode` check, which otherwise fails `lintVitalRelease` and
   blocks the release build because `android:debuggable` is no longer
   auto-assigned by the build type.
+- **`withSkipKotlinMetadataVersionCheck.js`** — OneSignal's native Android
+  JARs are compiled with a newer Kotlin compiler than the one RN 0.76's
+  Kotlin Gradle Plugin ships with, which fails the build with
+  `Module was compiled with an incompatible version of Kotlin`. Bumping the
+  project's own Kotlin version to match breaks the Kotlin Gradle Plugin
+  itself (`Found interface KotlinTopLevelExtension, but class was expected`),
+  so instead this plugin adds the `-Xskip-metadata-version-check` compiler
+  flag to every Kotlin compile task, which is the fix Gradle's own error
+  message suggests.
 
 Together these let `eas build --profile preview` produce a normal
 `assembleRelease` APK (JS bundle properly embedded, no Metro required)
-while still allowing the RevenueCat Test Store key to work without a
-crash.
+while still allowing the RevenueCat Test Store key and OneSignal to work
+without crashing or failing to compile.
+
+### A note on `react-native-onesignal` / `onesignal-expo-plugin` versions
+
+Both packages are pinned to older releases on purpose:
+- `react-native-onesignal@5.3.6` — versions 5.4.x+ require React Native
+  ≥0.79 (they register their TurboModule through an API only added in
+  0.79); on RN 0.76 (this project's version) they crash at runtime with
+  `TurboModuleRegistry.getEnforcing(...): 'OneSignal' could not be found`.
+  5.3.x uses the legacy bridge module instead, which works fine under the
+  New Architecture's interop layer.
+- `onesignal-expo-plugin@1.3.2` — the current release (2.0.3) requires
+  Expo SDK ≥53. This project is on SDK 52, so 1.3.2 is the last version
+  that resolves cleanly.
 
 ## Setup
 
 **Supabase:** create a project at [supabase.com](https://supabase.com), run
 `schema.sql` in the SQL Editor, copy the Project URL + `anon` key from
 Project Settings → API.
+
+**OneSignal (push notifications):**
+1. Create a free app at [onesignal.com](https://onesignal.com).
+2. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com),
+   add an Android app with package name `com.olcekciozge.talkai`, and
+   download `google-services.json` into the project root.
+3. In Firebase, go to Project Settings → Cloud Messaging → Manage Service
+   Accounts → create a JSON key, and upload that JSON when configuring the
+   Google Android (FCM) platform in OneSignal.
+4. Copy the OneSignal App ID into `app.json`'s `extra.oneSignalAppId`.
+5. In OneSignal, go to Messages → Journeys → Re-engagement, and set the
+   entrance segment to an inactivity-based audience segment (e.g.
+   "Last Session greater than 24 hours ago") with a single Push
+   Notification step, then set the Journey live. No custom backend code is
+   needed for the daily reminder — it's entirely dashboard-configured.
 
 **Backend:**
 ```bash
@@ -173,17 +218,17 @@ any network, as long as the backend + ngrok are running somewhere reachable.
    ngrok http --url=your-name.ngrok-free.dev 8000
    ```
 5. Point the app at the tunnel. **This must be set in two places:**
-  - Locally, in `.env`, for `npm run android` / dev builds:
-    ```
-    EXPO_PUBLIC_BACKEND_URL=https://your-name.ngrok-free.dev
-    ```
-  - On EAS, for `eas build`, since env vars are baked in at build time and
-    EAS reads its own stored values, not your local `.env`:
-    ```bash
-    npx eas-cli env:update --name EXPO_PUBLIC_BACKEND_URL \
-      --value "https://your-name.ngrok-free.dev" --environment preview
-    ```
-    Verify with `npx eas-cli env:list` (select `preview`) before building.
+    - Locally, in `.env`, for `npm run android` / dev builds:
+      ```
+      EXPO_PUBLIC_BACKEND_URL=https://your-name.ngrok-free.dev
+      ```
+    - On EAS, for `eas build`, since env vars are baked in at build time and
+      EAS reads its own stored values, not your local `.env`:
+      ```bash
+      npx eas-cli env:update --name EXPO_PUBLIC_BACKEND_URL \
+        --value "https://your-name.ngrok-free.dev" --environment preview
+      ```
+      Verify with `npx eas-cli env:list` (select `preview`) before building.
 6. ngrok's free tier shows an interstitial browser-warning page for
    non-browser requests unless a header is sent — `live.tsx` and
    `result.tsx` already add `ngrok-skip-browser-warning: true` to their
@@ -235,6 +280,11 @@ for why release, not debug, is used).
   [Custom config plugins](#custom-config-plugins-plugins)) as a workaround
   for a RevenueCat Test Store key check — fine for internal/demo builds,
   but should be revisited before any real store release.
+- OneSignal and its Expo plugin are pinned to older versions (5.3.x / 1.3.2)
+  to stay compatible with Expo SDK 52 / React Native 0.76 — revisit these
+  pins when the project upgrades to SDK 53+.
+- The daily reminder Journey re-engages any inactive subscriber; it isn't
+  personalized per scenario or streak yet.
 
 
 ## Demo Script
