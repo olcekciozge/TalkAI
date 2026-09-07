@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { OneSignal } from 'react-native-onesignal';
 import { supabase } from '@/lib/supabase';
 import { identifyPurchasesUser, resetPurchasesUser } from '@/lib/purchases';
+import { identifyAnalyticsUser, resetAnalyticsUser, trackEvent, AnalyticsEvent } from '@/lib/analytics';
 
 type AuthContextValue = {
     session: Session | null;
@@ -34,6 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // eslestiriyoruz - boylece ileride kisiye ozel/segment
                 // bazli bildirim gonderebiliriz.
                 OneSignal.login(data.session.user.id);
+                // Amplitude'da da ayni sekilde - burada sadece "kimlik
+                // eslestirme" yapiyoruz, Sign In event'ini FIRLATMIYORUZ
+                // (bu sadece app'i her acista degil, gercek giris aninda
+                // olmali - bkz. signInWithEmail/signUpWithEmail).
+                identifyAnalyticsUser(data.session.user.id);
             }
         });
 
@@ -44,10 +50,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 previousUserId.current = newSession.user.id;
                 identifyPurchasesUser(newSession.user.id);
                 OneSignal.login(newSession.user.id);
+                identifyAnalyticsUser(newSession.user.id);
             } else if (previousUserId.current) {
                 previousUserId.current = null;
                 resetPurchasesUser();
                 OneSignal.logout();
+                resetAnalyticsUser();
             }
         });
 
@@ -58,15 +66,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function signUpWithEmail(email: string, password: string) {
         const { error } = await supabase.auth.signUp({ email, password });
+        if (!error) {
+            trackEvent(AnalyticsEvent.SIGN_UP, { method: 'email' });
+        }
         return { error: error?.message ?? null };
     }
 
     async function signInWithEmail(email: string, password: string) {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (!error) {
+            trackEvent(AnalyticsEvent.SIGN_IN, { method: 'email' });
+        }
         return { error: error?.message ?? null };
     }
 
     async function signOut() {
+        trackEvent(AnalyticsEvent.SIGN_OUT);
         await supabase.auth.signOut();
     }
 

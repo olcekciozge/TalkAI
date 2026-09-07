@@ -8,6 +8,7 @@ import { TAB_BAR_CLEARANCE } from '@/constants/layout';
 import { saveSession, type FeedbackData, type TranscriptEntry } from '@/lib/sessionStorage';
 import FeedbackView from '@/components/FeedbackView';
 import TranscriptModal from '@/components/TranscriptModal';
+import { trackEvent, AnalyticsEvent } from '@/lib/analytics';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -69,6 +70,15 @@ export default function FeedbackScreen() {
             setScreenState('success');
 
             const overall = Math.round(((data.grammar.score + data.fluency.score + data.vocabulary.score) / 3) * 10);
+
+            trackEvent(AnalyticsEvent.FEEDBACK_VIEWED, {
+                scenario_id: scenario?.id ?? '',
+                overall_score: overall,
+                grammar_score: data.grammar.score,
+                fluency_score: data.fluency.score,
+                vocabulary_score: data.vocabulary.score,
+            });
+
             saveSession({
                 id: Date.now().toString(),
                 scenarioId: scenario?.id ?? '',

@@ -4,6 +4,7 @@ import { useFocusEffect } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { COLORS } from '@/constants/scenarioStyles';
 import { isPremiumUser, purchasePremium, restorePurchases } from '@/lib/purchases';
+import { trackEvent, AnalyticsEvent } from '@/lib/analytics';
 
 type Props = {
     title?: string;
@@ -54,6 +55,7 @@ export default function PremiumPaywall({
         const success = await purchasePremium();
         setPurchasing(false);
         if (success) {
+            trackEvent(AnalyticsEvent.PURCHASE_COMPLETED);
             setIsPremium(true);
             onUnlocked?.();
         }
@@ -68,6 +70,7 @@ export default function PremiumPaywall({
         const restored = await restorePurchases();
         setRestoring(false);
         if (restored) {
+            trackEvent(AnalyticsEvent.PURCHASE_RESTORED);
             setIsPremium(true);
             onUnlocked?.();
         } else {
