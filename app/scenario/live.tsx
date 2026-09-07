@@ -56,10 +56,12 @@ export default function LiveSessionScreen() {
         InCallManager.start({ media: 'audio' });
 
         try {
-            // 1. Django'dan geçici (ephemeral) token al
             const tokenRes = await fetch(`${BACKEND_URL}/api/realtime/token/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
                 body: JSON.stringify({ scenario_id: scenario.id }),
             });
             if (!tokenRes.ok) throw new Error('Backend token request failed');

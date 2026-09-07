@@ -45,6 +45,8 @@
       "expo-router",
       "expo-asset",
       "@config-plugins/react-native-webrtc",
+      "./plugins/withDebuggableManifest",
+      "./plugins/withDisableHardcodedDebugModeLint",
       [
         "expo-build-properties",
         {

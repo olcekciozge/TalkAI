@@ -51,7 +51,10 @@ export default function FeedbackScreen() {
         try {
             const res = await fetch(`${BACKEND_URL}/api/realtime/feedback/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'ngrok-skip-browser-warning': 'true',
+                },
                 body: JSON.stringify({
                     scenario_id: scenario?.id,
                     scenario_level: scenario?.level,
