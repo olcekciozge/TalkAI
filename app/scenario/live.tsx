@@ -9,6 +9,7 @@ import { SCENARIO_BACKGROUND } from '@/constants/scenarioBackgrounds';
 import { type TranscriptEntry } from '@/lib/sessionStorage';
 import TranscriptModal from '@/components/TranscriptModal';
 import InCallManager from 'react-native-incall-manager';
+import { trackEvent, AnalyticsEvent } from '@/lib/analytics';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -147,6 +148,12 @@ export default function LiveSessionScreen() {
                 console.log('DATA CHANNEL OPENED');
                 setConnectionState('connected');
                 startTimer();
+
+                trackEvent(AnalyticsEvent.SESSION_STARTED, {
+                    scenario_id: scenario.id,
+                    scenario_title: scenario.title,
+                    scenario_level: scenario.level,
+                });
 
                 dc.send(
                     JSON.stringify({
@@ -313,6 +320,10 @@ export default function LiveSessionScreen() {
     }
 
     function handleEnd() {
+        trackEvent(AnalyticsEvent.SESSION_ENDED, {
+            scenario_id: scenario?.id ?? '',
+            transcript_turns: transcriptEntries.length,
+        });
         cleanup();
         router.push({
             pathname: '/feedback/result',

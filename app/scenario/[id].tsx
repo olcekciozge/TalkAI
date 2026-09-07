@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { StyleSheet, Text, View, Pressable, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
@@ -7,6 +8,7 @@ import { FOOTER_BOTTOM_OFFSET } from '@/constants/layout';
 import { isPremiumUser } from '@/lib/purchases';
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/hooks/useFavorites';
+import { trackEvent, AnalyticsEvent } from '@/lib/analytics';
 
 export default function ScenarioDetailScreen() {
     const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +17,16 @@ export default function ScenarioDetailScreen() {
     const style = SCENARIO_STYLE[id];
     const { user } = useAuth();
     const { favoriteIds, toggleFavorite } = useFavorites();
+
+    useEffect(() => {
+        if (scenario) {
+            trackEvent(AnalyticsEvent.SCENARIO_VIEWED, {
+                scenario_id: scenario.id,
+                scenario_title: scenario.title,
+                is_premium: scenario.isPremium,
+            });
+        }
+    }, [scenario?.id]);
 
     if (!scenario) {
         return (
@@ -28,6 +40,10 @@ export default function ScenarioDetailScreen() {
 
     function handleToggleFavorite() {
         if (!user) return;
+        trackEvent(AnalyticsEvent.FAVORITE_TOGGLED, {
+            scenario_id: scenario!.id,
+            favorited: !isFavorite,
+        });
         toggleFavorite(scenario!.id);
     }
 
@@ -51,6 +67,10 @@ export default function ScenarioDetailScreen() {
         if (premium) {
             goToLive();
         } else {
+            trackEvent(AnalyticsEvent.PAYWALL_VIEWED, {
+                trigger: 'scenario_locked',
+                scenario_id: scenario.id,
+            });
             router.push({ pathname: '/paywall', params: { returnScenarioId: scenario.id } });
         }
     };

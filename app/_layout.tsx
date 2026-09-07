@@ -11,6 +11,7 @@ import { OneSignal } from 'react-native-onesignal';
 import Constants from 'expo-constants';
 import { useColorScheme } from '@/components/useColorScheme';
 import { initPurchases, isPremiumUser } from '@/lib/purchases';
+import { initAnalytics } from '@/lib/analytics';
 import { COLORS } from '@/constants/scenarioStyles';
 import { useSafeAreaInsets, SafeAreaProvider } from 'react-native-safe-area-context';
 import { SearchProvider, useSearch } from '@/contexts/SearchContext';
@@ -49,6 +50,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     initPurchases();
+  }, []);
+
+  useEffect(() => {
+    initAnalytics();
   }, []);
 
   useEffect(() => {
