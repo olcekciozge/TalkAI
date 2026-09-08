@@ -41,8 +41,8 @@ export default function FeedbackScreen() {
         }
         setTranscript(transcriptEntries);
 
-        // Doküman kuralı: boş transcript'le hiç istek atma
-        if (transcriptEntries.length === 0) {
+        const userTurns = transcriptEntries.filter((entry) => entry.role === 'user');
+        if (userTurns.length === 0) {
             setScreenState('empty');
             return;
         }

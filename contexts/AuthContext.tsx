@@ -25,12 +25,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const previousUserId = useRef<string | null>(null);
 
     useEffect(() => {
-        supabase.auth.getSession().then(({ data }) => {
-            setSession(data.session);
-            setLoading(false);
+        supabase.auth.getSession().then(async ({ data }) => {
             if (data.session?.user) {
                 previousUserId.current = data.session.user.id;
-                identifyPurchasesUser(data.session.user.id);
+                // ONEMLI: identifyPurchasesUser'i (Purchases.logIn) AWAIT
+                // ediyoruz, session state'ini guncellemeden once. Aksi
+                // halde uygulama her acilista RevenueCat kisa bir sure
+                // anonim kimlikte kaliyor - eger o pencerede bir ekran
+                // isPremiumUser() cagirirsa (ornegin ust bardaki taban
+                // rozeti) hesaba bagli olan premium'u goremeyip yanlislikla
+                // "premium degil" gosteriyordu. Once kimlik eslesmesi
+                // tamamlansin, sonra session (ve dolayisiyla "user")
+                // component'lere yayilsin.
+                await identifyPurchasesUser(data.session.user.id);
                 // OneSignal'deki push aboneligini Supabase user id'siyle
                 // eslestiriyoruz - boylece ileride kisiye ozel/segment
                 // bazli bildirim gonderebiliriz.
@@ -41,14 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 // olmali - bkz. signInWithEmail/signUpWithEmail).
                 identifyAnalyticsUser(data.session.user.id);
             }
+            setSession(data.session);
+            setLoading(false);
         });
 
         // Token yenilenmesi, baska yerden signOut vb. degisiklikleri de yakalar.
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
-            setSession(newSession);
+        const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
             if (newSession?.user) {
                 previousUserId.current = newSession.user.id;
-                identifyPurchasesUser(newSession.user.id);
+                await identifyPurchasesUser(newSession.user.id);
                 OneSignal.login(newSession.user.id);
                 identifyAnalyticsUser(newSession.user.id);
             } else if (previousUserId.current) {
@@ -57,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 OneSignal.logout();
                 resetAnalyticsUser();
             }
+            setSession(newSession);
         });
 
         return () => {

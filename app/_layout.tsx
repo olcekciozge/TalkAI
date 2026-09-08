@@ -27,6 +27,21 @@ export const unstable_settings = {
 
 SplashScreen.preventAutoHideAsync();
 
+// ONEMLI: initPurchases() ve initAnalytics()'i burada, modul yuklenir
+// yuklenmez (component agacinin disinda) cagiriyoruz - useEffect icinde
+// DEGIL. Sebep: React, ic ice component'lerin useEffect'lerini COCUKTAN
+// EBEVEYNE dogru calistiriyor. AuthProvider (RootLayout'un cocugu) kendi
+// useEffect'inde identifyPurchasesUser() (Purchases.logIn) cagiriyordu -
+// eger initPurchases() (Purchases.configure) hala RootLayout'un kendi
+// useEffect'inde (ebeveynde) bekliyorsa, logIn() configure'den ONCE
+// calisiyor ve RevenueCat SDK'si sessizce hata veriyordu. Bu da soguk
+// baslangicta (uygulamayi kapat-ac) premium durumunun bazen yanlislikla
+// kaybolmus gibi gorunmesine yol aciyordu. Modul seviyesinde cagirmak,
+// herhangi bir component mount olmadan/useEffect calismadan once
+// SDK'nin configure edilmis olmasini garanti ediyor.
+initPurchases();
+initAnalytics();
+
 // Ust ve alt bar AYNI boyutta olacak sekilde ortak sabitler.
 const BAR_HEIGHT = 56;
 const BAR_RADIUS = 28;
@@ -47,14 +62,6 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
-
-  useEffect(() => {
-    initPurchases();
-  }, []);
-
-  useEffect(() => {
-    initAnalytics();
-  }, []);
 
   useEffect(() => {
     const oneSignalAppId = Constants.expoConfig?.extra?.oneSignalAppId;

@@ -50,6 +50,7 @@
       "./plugins/withDebuggableManifest",
       "./plugins/withDisableHardcodedDebugModeLint",
       "./plugins/withSkipKotlinMetadataVersionCheck",
+      "./plugins/withDisableNativeAlertAllCaps",
       [
         "expo-build-properties",
         {
