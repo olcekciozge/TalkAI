@@ -6,7 +6,7 @@ voice conversation over WebRTC. After each session the user gets structured
 feedback (grammar, fluency, vocabulary, corrections). Sessions, favorites,
 and profile data are stored per-account in Supabase.
 
-Built as a 3-week / 15-working-day internship MVP.
+Built as a 4-week / 20-working-day internship MVP.
 
 ## Features
 
