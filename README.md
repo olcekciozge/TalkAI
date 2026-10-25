@@ -31,7 +31,7 @@ Built with Expo / React Native, a Django backend, the OpenAI Realtime API and Su
 
 |                     Home                      |                  Scenario detail                  | Sign in | Paywall |
 |:---------------------------------------------:|:-------------------------------------------------:|:---:|:---:|
-| <img src="screenshots/home1.png" width="200"> | <img src="screenshots/scenario1.png" width="200"> | <img src="screenshots/auth.png" width="200"> | <img src="screenshots/paywall.png" width="200"> |
+| <img src="screenshots/home1.png" width="150"> | <img src="screenshots/scenario1.png" width="150"> | <img src="screenshots/auth.png" width="150"> | <img src="screenshots/paywall.png" width="150"> |
 |      Scenario catalog, open to everyone       | Goals of the scenario, sign-in required to start  | Email and password | Premium scenarios via RevenueCat |
 
 ### Practicing
@@ -45,7 +45,7 @@ Built with Expo / React Native, a Django backend, the OpenAI Realtime API and Su
 
 |                     Feedback                      |                Feedback transcript                | Profile | History |
 |:-------------------------------------------------:|:-------------------------------------------------:|:---:|:---:|
-| <img src="screenshots/feedback1.png" width="200"> | <img src="screenshots/feedback2.png" width="200"> | <img src="screenshots/profile.png" width="200"> | <img src="screenshots/history.png" width="200"> |
+| <img src="screenshots/feedback1.png" width="150"> | <img src="screenshots/feedback2.png" width="150"> | <img src="screenshots/profile.png" width="150"> | <img src="screenshots/history.png" width="150"> |
 |         Overall score and per-skill notes         |          Full transcript of the session           | Averages and favorites | Every past session with its score |
 
 ## Scenarios
