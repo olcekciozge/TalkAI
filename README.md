@@ -31,21 +31,21 @@ Built with Expo / React Native, a Django backend, the OpenAI Realtime API and Su
 
 |                     Home                      |                  Scenario detail                  | Sign in | Paywall |
 |:---------------------------------------------:|:-------------------------------------------------:|:---:|:---:|
-| <img src="screenshots/home1.png" width="150"> | <img src="screenshots/scenario1.png" width="150"> | <img src="screenshots/auth.png" width="150"> | <img src="screenshots/paywall.png" width="150"> |
+| <img src="screenshots/home1.png" width="180"> | <img src="screenshots/scenario1.png" width="180"> | <img src="screenshots/auth.png" width="180"> | <img src="screenshots/paywall.png" width="180"> |
 |      Scenario catalog, open to everyone       | Goals of the scenario, sign-in required to start  | Email and password | Premium scenarios via RevenueCat |
 
 ### Practicing
 
 |               Scenario (signed in)                |                   Live call                   |                Live transcript                |
 |:-------------------------------------------------:|:---------------------------------------------:|:---------------------------------------------:|
-| <img src="screenshots/scenario2.png" width="200"> | <img src="screenshots/live1.png" width="200"> | <img src="screenshots/live2.png" width="200"> |
+| <img src="screenshots/scenario2.png" width="180"> | <img src="screenshots/live1.png" width="180"> | <img src="screenshots/live2.png" width="180"> |
 |           Favorited and ready to start            |     Push-to-talk call with the AI barista     |    Transcript panel opened during the call    |
 
 ### Feedback and progress
 
 |                     Feedback                      |                Feedback transcript                | Profile | History |
 |:-------------------------------------------------:|:-------------------------------------------------:|:---:|:---:|
-| <img src="screenshots/feedback1.png" width="150"> | <img src="screenshots/feedback2.png" width="150"> | <img src="screenshots/profile.png" width="150"> | <img src="screenshots/history.png" width="150"> |
+| <img src="screenshots/feedback1.png" width="180"> | <img src="screenshots/feedback2.png" width="180"> | <img src="screenshots/profile.png" width="180"> | <img src="screenshots/history.png" width="180"> |
 |         Overall score and per-skill notes         |          Full transcript of the session           | Averages and favorites | Every past session with its score |
 
 ## Scenarios
